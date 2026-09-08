@@ -1,0 +1,15 @@
+title: Clipboard Sync
+icon-size: 96
+contents:
+  - x: 448
+    y: 220
+    type: link
+    path: /Applications
+  - x: 160
+    y: 220
+    type: file
+    path: Clipboard Sync.app
+window:
+  size:
+    width: 620
+    height: 420

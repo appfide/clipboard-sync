@@ -1,0 +1,8 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          # ISO-8601 text keeps millisecond precision for the sync cursor.
+          store_date_time_values_as_text: true
+          generate_connect_constructor: false

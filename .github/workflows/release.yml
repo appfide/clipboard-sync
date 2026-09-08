@@ -1,0 +1,202 @@
+name: Release
+
+# Every push to main that bumps `version:` in apps/clipboard_sync/pubspec.yaml
+# creates tag v<version>, builds every installer and publishes a GitHub
+# Release. Pushing a v* tag manually (or workflow_dispatch) does the same.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.44.4"
+  APP_DIR: apps/clipboard_sync
+  ARTIFACT_NAME: "ClipboardSync-{{build_name}}-{{platform}}-{{arch}}.{{ext}}"
+
+jobs:
+  # ---------------------------------------------------------------------------
+  version:
+    name: Resolve version / create tag
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - id: v
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(sed -nE 's/^version:\s*([0-9]+\.[0-9]+\.[0-9]+).*/\1/p' "$APP_DIR/pubspec.yaml")
+          tag="v$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists — nothing to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
+          echo "release=true" >> "$GITHUB_OUTPUT"
+
+  # ---------------------------------------------------------------------------
+  build:
+    name: Build ${{ matrix.target }}
+    needs: version
+    if: needs.version.outputs.release == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest,   target: macos,   platform: macos,   targets: dmg }
+          - { os: macos-latest,   target: ios,     platform: ios,     targets: ipa }
+          - { os: windows-latest, target: windows, platform: windows, targets: "exe,zip" }
+          - { os: ubuntu-latest,  target: linux,   platform: linux,   targets: "deb,appimage" }
+          - { os: ubuntu-latest,  target: android, platform: android, targets: "apk,aab" }
+    env:
+      VERSION: ${{ needs.version.outputs.version }}
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        if: runner.os == 'Linux'
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.tag }}
+
+      - uses: actions/setup-java@dd06d9cba3e5552c54d9f8ea23572deb30010f7c # v6.0.0
+        if: matrix.target == 'android'
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Linux build + packaging deps
+        if: matrix.target == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev libayatana-appindicator3-dev libsecret-1-dev libkeybinder-3.0-dev \
+            libfuse2 dpkg-dev fakeroot
+          curl -sSL -o /usr/local/bin/appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x /usr/local/bin/appimagetool
+
+      - name: macOS packaging deps (appdmg)
+        if: matrix.target == 'macos'
+        run: npm install -g appdmg
+
+      - name: Android signing key (optional)
+        if: matrix.target == 'android' && env.ANDROID_KEYSTORE_BASE64 != ''
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 -d > "$APP_DIR/android/upload-keystore.jks"
+          cat > "$APP_DIR/android/key.properties" <<EOT
+          storeFile=upload-keystore.jks
+          storePassword=$ANDROID_KEYSTORE_PASSWORD
+          keyAlias=$ANDROID_KEY_ALIAS
+          keyPassword=$ANDROID_KEY_PASSWORD
+          EOT
+          echo "Release keystore configured."
+
+      - name: Install flutter_distributor
+        shell: bash
+        run: |
+          dart pub global activate flutter_distributor
+          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
+
+      - name: Package (${{ matrix.targets }})
+        if: matrix.target != 'ios'
+        shell: bash
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -euo pipefail
+          flutter pub get
+          flutter_distributor package \
+            --platform "${{ matrix.platform }}" \
+            --targets "${{ matrix.targets }}" \
+            --artifact-name "$ARTIFACT_NAME" \
+            --build-dart-define "APP_VERSION=$VERSION" \
+            --build-dart-define "GIT_SHA=${GITHUB_SHA::7}"
+
+      - name: Build unsigned iOS ipa
+        if: matrix.target == 'ios'
+        working-directory: ${{ env.APP_DIR }}
+        run: |
+          set -euo pipefail
+          flutter pub get
+          flutter build ios --release --no-codesign \
+            --dart-define "APP_VERSION=$VERSION" --dart-define "GIT_SHA=${GITHUB_SHA::7}"
+          mkdir -p dist/ios/Payload
+          cp -R build/ios/iphoneos/Runner.app dist/ios/Payload/
+          (cd dist/ios && zip -qr "ClipboardSync-$VERSION-ios-unsigned.ipa" Payload)
+          rm -rf dist/ios/Payload
+
+      - name: Collect artifacts
+        shell: bash
+        run: |
+          mkdir -p out
+          find "$APP_DIR/dist" -type f \( -name '*.dmg' -o -name '*.exe' -o -name '*.zip' -o -name '*.deb' -o -name '*.AppImage' -o -name '*.apk' -o -name '*.aab' -o -name '*.ipa' \) -exec cp {} out/ \;
+          ls -la out
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ matrix.target }}
+          path: out/*
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  publish:
+    name: Publish GitHub Release
+    needs: [version, build]
+    if: needs.version.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Checksums
+        run: |
+          cd artifacts
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          tag_name: ${{ needs.version.outputs.tag }}
+          name: Clipboard Sync ${{ needs.version.outputs.version }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: artifacts/*
+          body: |
+            Unsigned builds — see [docs/release.md](https://github.com/appfide/clipboard-sync/blob/main/docs/release.md#installing-unsigned-builds) for Gatekeeper / SmartScreen steps.
+            Verify downloads with `SHA256SUMS.txt`.

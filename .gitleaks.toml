@@ -78,6 +78,7 @@ description = "Android signing keystore password in gradle/properties"
 regex = '''(?i)(storePassword|keyPassword|store_password|key_password)\s*[=:]\s*['"]?[^\s'"]{4,}'''
 keywords = ["storePassword", "keyPassword", "store_password", "key_password"]
 [rules.allowlist]
+regexTarget = "line"
 regexes = [
   '''(?i)(storePassword|keyPassword)\s*[=:]\s*['"]?\$\{?\w+\}?''',
   '''(?i)(storePassword|keyPassword)\s*[=:]\s*['"]?(System\.getenv|keystoreProperties|project\.property)''',

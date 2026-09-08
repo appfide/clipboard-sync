@@ -13,8 +13,11 @@ import 'package:dio/dio.dart';
 ///
 /// The official `cloud_firestore` plugin does not support Linux, so this
 /// adapter uses REST on every platform. Auth uses Firebase Identity Toolkit:
-/// email + password when provided, otherwise anonymous sign-in. Security
-/// rules in `docs/backends/firestore.md` restrict access accordingly.
+/// email + password when provided, otherwise anonymous sign-in.
+///
+/// All documents live under `users/{uid}/…` so the security rules in
+/// `docs/backends/firestore.md` isolate users by path — no `owner_id`
+/// filter and therefore no composite index is needed for the cursor query.
 ///
 /// Polling only — the REST `Listen` endpoint requires gRPC streaming.
 class FirestoreBackend implements SyncBackend {
@@ -87,13 +90,16 @@ class FirestoreBackend implements SyncBackend {
   String? _password;
   String? _idToken;
   String? _refreshToken;
+  String? _uid;
   DateTime _tokenExpiry = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
 
   @override
   BackendDescriptor get descriptor => descriptorStatic;
 
-  String get _docsBase =>
-      '/v1/projects/$_project/databases/(default)/documents';
+  String get _root => 'projects/$_project/databases/(default)/documents';
+
+  /// Per-user document root (`…/documents/users/{uid}`).
+  String get _docsBase => '/v1/$_root/users/${_uid ?? '_'}';
 
   @override
   Future<void> connect(BackendConfig config) async {
@@ -132,6 +138,7 @@ class FirestoreBackend implements SyncBackend {
           'idToken': r.data!['id_token'],
           'refreshToken': r.data!['refresh_token'],
           'expiresIn': r.data!['expires_in'],
+          'localId': r.data!['user_id'],
         };
       } else if (_email != null && _password != null) {
         final r = await auth.post<Map<String, dynamic>>(
@@ -154,6 +161,7 @@ class FirestoreBackend implements SyncBackend {
       }
       _idToken = data['idToken'] as String;
       _refreshToken = data['refreshToken'] as String?;
+      _uid = data['localId'] as String? ?? _uid;
       final secs = int.tryParse(data['expiresIn'].toString()) ?? 3600;
       _tokenExpiry = DateTime.now().toUtc().add(Duration(seconds: secs));
     } on DioException catch (e) {
@@ -224,8 +232,7 @@ class FirestoreBackend implements SyncBackend {
         for (final i in items)
           {
             'update': {
-              'name':
-                  'projects/$_project/databases/(default)/documents/$_collection/${i.id}',
+              'name': '$_root/users/$_uid/$_collection/${i.id}',
               'fields': _encode(i.toMap()),
             },
           },
@@ -411,6 +418,7 @@ class FirestoreBackend implements SyncBackend {
     _auth = null;
     _idToken = null;
     _refreshToken = null;
+    _uid = null;
   }
 
   // --- Firestore typed-value encoding -------------------------------------

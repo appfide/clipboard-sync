@@ -1,0 +1,13 @@
+# Inno Setup configuration (iscc must be on PATH; preinstalled on GitHub windows runners).
+app_id: 7A1B0E2C-3D4F-4A5B-9C6D-7E8F9A0B1C2D
+publisher: Appfide
+publisher_url: https://github.com/appfide/clipboard-sync
+display_name: Clipboard Sync
+executable_name: clipboard_sync.exe
+create_desktop_icon: true
+install_dir_name: ClipboardSync
+privileges_required: lowest
+launch_at_startup: false
+locales:
+  - en
+setup_icon_file: windows/runner/resources/app_icon.ico

@@ -155,9 +155,14 @@ class PocketBaseBackend implements SyncBackend {
           );
   }
 
+  /// Signed-in record id, used to stamp `owner` so collection rules can
+  /// scope rows per user.
+  String? get _ownerId => _c.authStore.record?.id;
+
   Map<String, dynamic> _body(ClipItem i) => <String, dynamic>{
     ...i.toMap()..remove('id'),
     'clip_id': i.id,
+    if (_ownerId != null) 'owner': _ownerId,
   };
 
   @override
@@ -271,6 +276,7 @@ class PocketBaseBackend implements SyncBackend {
       final body = <String, dynamic>{
         ...device.toMap()..remove('id'),
         'device_id': device.id,
+        if (_ownerId != null) 'owner': _ownerId,
       };
       RecordModel? existing;
       try {

@@ -1,0 +1,23 @@
+display_name: Clipboard Sync
+package_name: clipboard-sync
+maintainer:
+  name: Appfide
+  email: opensource@appfide.com
+priority: optional
+section: utils
+installed_size: 60000
+essential: false
+icon: assets/icons/app.png
+generic_name: Clipboard manager
+categories:
+  - Utility
+keywords:
+  - clipboard
+  - sync
+  - history
+startup_notify: true
+dependencies:
+  - libgtk-3-0
+  - libayatana-appindicator3-1
+  - libsecret-1-0
+  - libkeybinder-3.0-0
