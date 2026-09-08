@@ -54,7 +54,8 @@ description = "MongoDB connection string with embedded credentials"
 regex = '''mongodb(\+srv)?://[^\s:/@]+:[^\s@]+@[^\s"']+'''
 keywords = ["mongodb://", "mongodb+srv://"]
 [rules.allowlist]
-regexes = ['''mongodb(\+srv)?://(USER|user|username|<user>)[^@]*:(PASS|pass|password|<password>|YOUR_PASSWORD)[^@]*@''']
+regexTarget = "line"
+regexes = ['''mongodb(\+srv)?://(u|USER|user|username|<user>|YOUR_USER):(p|PASS|PASSWORD|pass|password|<password>|YOUR_PASSWORD)@''']
 
 [[rules]]
 id = "couchdb-basic-auth-url"
@@ -62,7 +63,8 @@ description = "CouchDB URL with embedded basic-auth credentials"
 regex = '''https?://[^\s:/@]+:[^\s@]+@[^\s"']*(:5984|couchdb|cloudant)[^\s"']*'''
 keywords = ["5984", "couchdb", "cloudant"]
 [rules.allowlist]
-regexes = ['''https?://(admin|user|USER|<user>):(password|PASS|pass|<password>|YOUR_PASSWORD)@''']
+regexTarget = "line"
+regexes = ['''https?://(admin|user|USER|<user>|YOUR_USER):(password|PASS|PASSWORD|pass|<password>|YOUR_PASSWORD)@''']
 
 [[rules]]
 id = "pocketbase-admin-token"
@@ -120,6 +122,8 @@ regexes = [
 ]
 paths = [
   '''(^|/)\.gitleaks\.toml$''',
+  '''(^|/)\.dart_tool/''',
+  '''(^|/)build/''',
   '''(^|/)pubspec\.lock$''',
   '''(^|/)Podfile\.lock$''',
   '''\.g\.dart$''',

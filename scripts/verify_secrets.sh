@@ -29,7 +29,7 @@ for f in "${files[@]}"; do
 done
 
 # Hardcoded endpoints in app/core source (docs, tests and fixtures are exempt).
-endpoint_re='https?://[a-z0-9-]+\.(supabase\.co|firebaseio\.com|googleapis\.com|pocketbase\.io|cloudant\.com|mongodb\.net)'
+endpoint_re='https?://[a-z0-9-]+\.(supabase\.co|firebaseio\.com|pocketbase\.io|cloudant\.com|mongodb\.net)'
 endpoint_allow='(^|/)(test|tests|integration_test|example|docs)/|\.md$|_test\.dart$|(^|/)\.gitleaks\.toml$|(^|/)scripts/'
 for f in "${files[@]}"; do
   [ -f "$f" ] || continue

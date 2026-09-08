@@ -32,6 +32,8 @@ linter:
     only_throw_errors: true
     prefer_single_quotes: true
     sort_pub_dependencies: true
-    # Relaxed: line length is handled by `dart format`.
+    # Relaxed: adapters must catch-all to wrap third-party errors; line length is handled by `dart format`.
+    avoid_catches_without_on_clauses: false
+    prefer_constructors_over_static_methods: false
     lines_longer_than_80_chars: false
     public_member_api_docs: false
