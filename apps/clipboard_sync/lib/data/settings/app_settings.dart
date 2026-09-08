@@ -21,6 +21,7 @@ class AppSettings {
     this.autoStart = false,
     this.launchHidden = false,
     this.hotkeyEnabled = true,
+    this.themeMode = 'system',
   });
 
   /// Stable id for this installation.
@@ -65,6 +66,9 @@ class AppSettings {
   /// Desktop: global hotkey to open the window.
   final bool hotkeyEnabled;
 
+  /// `system`, `light` or `dark`.
+  final String themeMode;
+
   /// Backend config derived from these settings.
   BackendConfig get backendConfig =>
       BackendConfig(backendId: backendId, values: backendValues);
@@ -94,6 +98,7 @@ class AppSettings {
     bool? autoStart,
     bool? launchHidden,
     bool? hotkeyEnabled,
+    String? themeMode,
   }) => AppSettings(
     deviceId: deviceId,
     deviceName: deviceName ?? this.deviceName,
@@ -110,6 +115,7 @@ class AppSettings {
     autoStart: autoStart ?? this.autoStart,
     launchHidden: launchHidden ?? this.launchHidden,
     hotkeyEnabled: hotkeyEnabled ?? this.hotkeyEnabled,
+    themeMode: themeMode ?? this.themeMode,
   );
 
   /// Whether a backend/cipher rebuild is needed between [a] and [b].

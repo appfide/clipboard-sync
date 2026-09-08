@@ -1,15 +1,15 @@
 import 'dart:async';
 
-import 'package:clipboard_sync/core/build_info.dart';
 import 'package:clipboard_sync/core/platform_info.dart';
 import 'package:clipboard_sync/providers.dart';
+import 'package:clipboard_sync/ui/app_theme.dart';
+import 'package:clipboard_sync/ui/widgets/section_card.dart';
 import 'package:clipsync_core/clipsync_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 
-/// All preferences.
+/// All preferences, grouped in cards.
 class SettingsPage extends ConsumerWidget {
   /// Creates the page.
   const SettingsPage({super.key});
@@ -22,174 +22,266 @@ class SettingsPage extends ConsumerWidget {
         .watch(backendRegistryProvider)
         .descriptor(s.backendId);
     final shell = ref.watch(desktopShellProvider);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
-      body: ListView(
-        children: [
-          const _Header('Sync'),
-          ListTile(
-            leading: const Icon(Icons.storage),
-            title: const Text('Database'),
-            subtitle: Text(descriptor?.displayName ?? s.backendId),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/settings/backend'),
-          ),
-          ListTile(
-            leading: const Icon(Icons.timer_outlined),
-            title: const Text('Poll interval'),
-            subtitle: Text(
-              descriptor?.supportsRealtime ?? false
-                  ? 'Realtime backend — used only as fallback'
-                  : 'Every ${s.pollIntervalSeconds} s',
-            ),
-            trailing: DropdownButton<int>(
-              value: s.pollIntervalSeconds,
-              underline: const SizedBox.shrink(),
-              items: const [2, 5, 10, 30, 60, 300]
-                  .map((v) => DropdownMenuItem(value: v, child: Text('$v s')))
-                  .toList(),
-              onChanged: (v) => v == null
-                  ? null
-                  : notifier.update((x) => x.copyWith(pollIntervalSeconds: v)),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.auto_delete_outlined),
-            title: const Text('Keep history for'),
-            trailing: DropdownButton<int>(
-              value: s.retentionDays,
-              underline: const SizedBox.shrink(),
-              items: const [
-                DropdownMenuItem(value: 1, child: Text('1 day')),
-                DropdownMenuItem(value: 7, child: Text('7 days')),
-                DropdownMenuItem(value: 30, child: Text('30 days')),
-                DropdownMenuItem(value: 90, child: Text('90 days')),
-                DropdownMenuItem(value: 0, child: Text('Forever')),
-              ],
-              onChanged: (v) => v == null
-                  ? null
-                  : notifier.update((x) => x.copyWith(retentionDays: v)),
-            ),
-          ),
-          const _Header('Encryption'),
-          const _EncryptionTile(),
-          const _Header('Capture'),
-          SwitchListTile(
-            secondary: const Icon(Icons.image_outlined),
-            title: const Text('Capture images'),
-            subtitle: Text('Up to ${s.maxInlineKb} KB'),
-            value: s.captureImages,
-            onChanged: (v) =>
-                notifier.update((x) => x.copyWith(captureImages: v)),
-          ),
-          SwitchListTile(
-            secondary: const Icon(Icons.content_paste_go),
-            title: const Text('Auto-paste incoming'),
-            subtitle: const Text(
-              'Put the newest item from other devices on this clipboard',
-            ),
-            value: s.writeIncomingToClipboard,
-            onChanged: (v) =>
-                notifier.update((x) => x.copyWith(writeIncomingToClipboard: v)),
-          ),
-          if (PlatformInfo.isMobile)
-            const ListTile(
-              leading: Icon(Icons.info_outline),
-              title: Text('Mobile capture'),
-              subtitle: Text(
-                'The OS only allows reading the clipboard while the app is open. Open the app (or tap Sync) after copying.',
+      body: SafeArea(
+        child: ContentColumn(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+            children: [
+              Text('Settings', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 16),
+              ValueListenableBuilder<bool>(
+                valueListenable: ref.watch(secretStoreProvider).degraded,
+                builder: (context, degraded, _) => degraded
+                    ? const _DegradedBanner()
+                    : const SizedBox.shrink(),
               ),
-            ),
-          if (PlatformInfo.isDesktop) ...[
-            const _Header('Desktop'),
-            SwitchListTile(
-              secondary: const Icon(Icons.power_settings_new),
-              title: const Text('Start at login'),
-              value: s.autoStart,
-              onChanged: (v) =>
-                  notifier.update((x) => x.copyWith(autoStart: v)),
-            ),
-            SwitchListTile(
-              secondary: const Icon(Icons.visibility_off_outlined),
-              title: const Text('Start minimised to tray'),
-              value: s.launchHidden,
-              onChanged: (v) =>
-                  notifier.update((x) => x.copyWith(launchHidden: v)),
-            ),
-            SwitchListTile(
-              secondary: const Icon(Icons.keyboard),
-              title: const Text('Global hotkey'),
-              subtitle: Text(shell?.hotkeyLabel ?? ''),
-              value: s.hotkeyEnabled,
-              onChanged: (v) async {
-                await notifier.update((x) => x.copyWith(hotkeyEnabled: v));
-                await shell?.setHotkeyEnabled(enabled: v);
-              },
-            ),
-          ],
-          const _Header('This device'),
-          ValueListenableBuilder<bool>(
-            valueListenable: ref.watch(secretStoreProvider).degraded,
-            builder: (context, degraded, _) => degraded
-                ? ListTile(
-                    leading: Icon(
-                      Icons.warning_amber,
-                      color: Theme.of(context).colorScheme.error,
+              SectionCard(
+                title: 'Sync',
+                children: [
+                  SettingRow(
+                    icon: Icons.storage_rounded,
+                    title: 'Database',
+                    subtitle: descriptor?.displayName ?? s.backendId,
+                    onTap: () => context.push('/settings/backend'),
+                  ),
+                  SettingRow(
+                    icon: Icons.timer_outlined,
+                    title: 'Poll interval',
+                    subtitle: (descriptor?.supportsRealtime ?? false)
+                        ? 'Realtime backend — used only as fallback'
+                        : 'How often to check for changes',
+                    trailing: _Dropdown<int>(
+                      value: s.pollIntervalSeconds,
+                      items: const {
+                        2: '2 s',
+                        5: '5 s',
+                        10: '10 s',
+                        30: '30 s',
+                        60: '1 min',
+                        300: '5 min',
+                      },
+                      onChanged: (v) => notifier.update(
+                        (x) => x.copyWith(pollIntervalSeconds: v),
+                      ),
                     ),
-                    title: const Text('OS credential store unavailable'),
-                    subtitle: const Text(
-                      'Database credentials are kept in app preferences instead of the system keychain. See Diagnostics.',
+                  ),
+                  SettingRow(
+                    icon: Icons.auto_delete_outlined,
+                    title: 'Keep history for',
+                    subtitle: 'Older items are removed locally and remotely',
+                    trailing: _Dropdown<int>(
+                      value: s.retentionDays,
+                      items: const {
+                        1: '1 day',
+                        7: '7 days',
+                        30: '30 days',
+                        90: '90 days',
+                        0: 'Forever',
+                      },
+                      onChanged: (v) =>
+                          notifier.update((x) => x.copyWith(retentionDays: v)),
                     ),
-                  )
-                : const SizedBox.shrink(),
+                  ),
+                ],
+              ),
+              const SectionCard(title: 'Privacy', children: [_EncryptionRow()]),
+              SectionCard(
+                title: 'Appearance',
+                children: [
+                  SettingRow(
+                    icon: Icons.brightness_6_rounded,
+                    title: 'Theme',
+                    trailing: _Dropdown<String>(
+                      value: s.themeMode,
+                      items: const {
+                        'system': 'System',
+                        'light': 'Light',
+                        'dark': 'Dark',
+                      },
+                      onChanged: (v) =>
+                          notifier.update((x) => x.copyWith(themeMode: v)),
+                    ),
+                  ),
+                ],
+              ),
+              SectionCard(
+                title: 'Capture',
+                children: [
+                  SwitchRow(
+                    icon: Icons.image_outlined,
+                    title: 'Capture images',
+                    subtitle: 'Up to ${s.maxInlineKb} KB per image',
+                    value: s.captureImages,
+                    onChanged: (v) =>
+                        notifier.update((x) => x.copyWith(captureImages: v)),
+                  ),
+                  SwitchRow(
+                    icon: Icons.content_paste_go_rounded,
+                    title: 'Auto-paste incoming',
+                    subtitle:
+                        'Put the newest item from other devices on this clipboard',
+                    value: s.writeIncomingToClipboard,
+                    onChanged: (v) => notifier.update(
+                      (x) => x.copyWith(writeIncomingToClipboard: v),
+                    ),
+                  ),
+                  if (PlatformInfo.isMobile)
+                    const SettingRow(
+                      icon: Icons.info_outline_rounded,
+                      title: 'Mobile capture',
+                      subtitle:
+                          'The OS only allows reading the clipboard while the app is open. Copy, then open the app or tap Capture.',
+                      tint: AppTokens.amber600,
+                    ),
+                ],
+              ),
+              if (PlatformInfo.isDesktop)
+                SectionCard(
+                  title: 'Desktop',
+                  children: [
+                    SwitchRow(
+                      icon: Icons.power_settings_new_rounded,
+                      title: 'Start at login',
+                      value: s.autoStart,
+                      onChanged: (v) =>
+                          notifier.update((x) => x.copyWith(autoStart: v)),
+                    ),
+                    SwitchRow(
+                      icon: Icons.visibility_off_outlined,
+                      title: 'Start minimised to tray',
+                      value: s.launchHidden,
+                      onChanged: (v) =>
+                          notifier.update((x) => x.copyWith(launchHidden: v)),
+                    ),
+                    SwitchRow(
+                      icon: Icons.keyboard_rounded,
+                      title: 'Global hotkey',
+                      subtitle:
+                          'Press ${shell?.hotkeyLabel ?? ''} anywhere to open history',
+                      value: s.hotkeyEnabled,
+                      onChanged: (v) async {
+                        await notifier.update(
+                          (x) => x.copyWith(hotkeyEnabled: v),
+                        );
+                        await shell?.setHotkeyEnabled(enabled: v);
+                      },
+                    ),
+                  ],
+                ),
+              SectionCard(
+                title: 'This device',
+                children: [
+                  SettingRow(
+                    icon: Icons.devices_rounded,
+                    title: 'Device name',
+                    subtitle: s.deviceName,
+                    onTap: () async {
+                      final name = await promptText(
+                        context,
+                        'Device name',
+                        s.deviceName,
+                      );
+                      if (name != null && name.trim().isNotEmpty) {
+                        await notifier.update(
+                          (x) => x.copyWith(deviceName: name.trim()),
+                        );
+                      }
+                    },
+                  ),
+                  SettingRow(
+                    icon: Icons.bug_report_outlined,
+                    title: 'Diagnostics',
+                    subtitle: 'Redacted logs for bug reports',
+                    onTap: () => context.push('/settings/diagnostics'),
+                  ),
+                ],
+              ),
+            ],
           ),
-          ListTile(
-            leading: const Icon(Icons.devices),
-            title: const Text('Device name'),
-            subtitle: Text(s.deviceName),
-            onTap: () async {
-              final name = await _prompt(context, 'Device name', s.deviceName);
-              if (name != null && name.trim().isNotEmpty) {
-                await notifier.update(
-                  (x) => x.copyWith(deviceName: name.trim()),
-                );
-              }
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.bug_report_outlined),
-            title: const Text('Diagnostics'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push('/settings/diagnostics'),
-          ),
-          const _Header('About'),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('Clipboard Sync'),
-            subtitle: const Text(
-              'Version ${BuildInfo.version} (${BuildInfo.gitSha}) · MIT · Appfide',
-            ),
-            onTap: () => launchUrl(
-              Uri.parse(BuildInfo.repoUrl),
-              mode: LaunchMode.externalApplication,
-            ),
-          ),
-          const SizedBox(height: 24),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _EncryptionTile extends ConsumerStatefulWidget {
-  const _EncryptionTile();
+class _Dropdown<T> extends StatelessWidget {
+  const _Dropdown({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+  final T value;
+  final Map<T, String> items;
+  final ValueChanged<T> onChanged;
 
   @override
-  ConsumerState<_EncryptionTile> createState() => _EncryptionTileState();
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 10),
+    decoration: BoxDecoration(
+      color: context.colors.surfaceSunken,
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: context.colors.border),
+    ),
+    child: DropdownButton<T>(
+      value: value,
+      underline: const SizedBox.shrink(),
+      isDense: true,
+      borderRadius: BorderRadius.circular(AppTokens.radius),
+      style: Theme.of(context).textTheme.labelLarge,
+      items: [
+        for (final e in items.entries)
+          DropdownMenuItem(value: e.key, child: Text(e.value)),
+      ],
+      onChanged: (v) => v == null ? null : onChanged(v),
+    ),
+  );
 }
 
-class _EncryptionTileState extends ConsumerState<_EncryptionTile> {
+class _DegradedBanner extends StatelessWidget {
+  const _DegradedBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: scheme.errorContainer,
+          borderRadius: BorderRadius.circular(AppTokens.radius),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(Icons.warning_amber_rounded, color: scheme.onErrorContainer),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                'OS credential store unavailable — database credentials are kept in app preferences instead of the system keychain. See Diagnostics.',
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: scheme.onErrorContainer),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EncryptionRow extends ConsumerStatefulWidget {
+  const _EncryptionRow();
+
+  @override
+  ConsumerState<_EncryptionRow> createState() => _EncryptionRowState();
+}
+
+class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
   String? _fingerprint;
 
   @override
@@ -201,7 +293,7 @@ class _EncryptionTileState extends ConsumerState<_EncryptionTile> {
   Future<void> _refresh() async {
     final s = ref.read(settingsProvider);
     if (!s.encryptionEnabled) {
-      setState(() => _fingerprint = null);
+      if (mounted) setState(() => _fingerprint = null);
       return;
     }
     final pass = await ref.read(settingsRepositoryProvider).loadPassphrase();
@@ -220,13 +312,13 @@ class _EncryptionTileState extends ConsumerState<_EncryptionTile> {
       await _refresh();
       return;
     }
-    final pass = await _prompt(
+    final pass = await promptText(
       context,
       'Encryption passphrase',
       '',
       obscure: true,
       help:
-          'Use the same passphrase on every device. Losing it makes synced history unreadable.',
+          'Use the same passphrase on every device. If you lose it, synced history cannot be read.',
     );
     if (pass == null || pass.isEmpty) return;
     await repo.savePassphrase(pass);
@@ -237,47 +329,36 @@ class _EncryptionTileState extends ConsumerState<_EncryptionTile> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
+    final c = context.colors;
     return Column(
       children: [
-        SwitchListTile(
-          secondary: const Icon(Icons.lock_outline),
-          title: const Text('End-to-end encryption'),
-          subtitle: Text(
-            s.encryptionEnabled
-                ? 'On · key fingerprint ${_fingerprint ?? '…'} (must match on all devices)'
-                : 'Off · the database can read your clipboard',
-          ),
+        SwitchRow(
+          icon: s.encryptionEnabled
+              ? Icons.lock_rounded
+              : Icons.lock_open_rounded,
+          title: 'End-to-end encryption',
+          subtitle: s.encryptionEnabled
+              ? 'On · key fingerprint ${_fingerprint ?? '…'} — must match on every device'
+              : 'Off · the database can read your clipboard',
           value: s.encryptionEnabled,
           onChanged: _toggle,
         ),
-        if (s.encryptionEnabled)
-          ListTile(
-            leading: const SizedBox.shrink(),
-            title: const Text('Change passphrase'),
+        if (s.encryptionEnabled) ...[
+          const Divider(),
+          SettingRow(
+            icon: Icons.key_rounded,
+            title: 'Change passphrase',
+            tint: c.muted,
             onTap: () => _toggle(true),
           ),
+        ],
       ],
     );
   }
 }
 
-class _Header extends StatelessWidget {
-  const _Header(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
-    child: Text(
-      text,
-      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-        color: Theme.of(context).colorScheme.primary,
-      ),
-    ),
-  );
-}
-
-Future<String?> _prompt(
+/// Simple text prompt dialog.
+Future<String?> promptText(
   BuildContext context,
   String title,
   String initial, {
@@ -289,22 +370,26 @@ Future<String?> _prompt(
     context: context,
     builder: (ctx) => AlertDialog(
       title: Text(title),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (help != null)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(help, style: Theme.of(ctx).textTheme.bodySmall),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 420),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (help != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(help, style: Theme.of(ctx).textTheme.bodySmall),
+              ),
+            TextField(
+              controller: ctl,
+              obscureText: obscure,
+              autofocus: true,
+              autocorrect: false,
+              onSubmitted: (v) => Navigator.pop(ctx, v),
             ),
-          TextField(
-            controller: ctl,
-            obscureText: obscure,
-            autofocus: true,
-            autocorrect: false,
-            onSubmitted: (v) => Navigator.pop(ctx, v),
-          ),
-        ],
+          ],
+        ),
       ),
       actions: [
         TextButton(
@@ -313,7 +398,7 @@ Future<String?> _prompt(
         ),
         FilledButton(
           onPressed: () => Navigator.pop(ctx, ctl.text),
-          child: const Text('OK'),
+          child: const Text('Save'),
         ),
       ],
     ),

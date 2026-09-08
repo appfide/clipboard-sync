@@ -20,6 +20,17 @@ You will receive an acknowledgement within 72 hours and a fix or mitigation plan
 
 ## Repository safeguards
 
-- `gitleaks` + `pre-commit` block secrets locally; CI rescans full history on every push.
-- All GitHub Actions are pinned to commit SHAs; `dependabot` updates them weekly.
+Local
+- `.gitignore` excludes every credential file class (keystores, certificates, provisioning profiles, `.env*`, Firebase/Google config, service accounts, local databases).
+- `gitleaks` (default rules + per-database patterns in `.gitleaks.toml`) and `scripts/verify_secrets.sh` run in the pre-commit hook.
+
+Server-side (GitHub)
+- Secret scanning with push protection rejects known credential formats at push time.
+- `main protection` ruleset: pull requests only, required status checks (secret scan, lint, core tests, app tests), linear history, no force-push or deletion.
+- `release tags` ruleset: `v*` tags cannot be deleted or moved.
+- GitHub Actions restricted to GitHub-owned actions plus an explicit allowlist, all pinned to commit SHAs; workflow token defaults to read-only.
+- Dependabot alerts and security updates enabled; private vulnerability reporting enabled.
+- Push rulesets (path/extension blocking) are not available on public source repositories, so the pre-commit hook and CI gitleaks scan are the file-level gate.
+
+Release integrity
 - Releases are built only by GitHub Actions from tagged commits on `main`; `SHA256SUMS.txt` accompanies every release.

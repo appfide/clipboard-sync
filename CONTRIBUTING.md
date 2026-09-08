@@ -28,6 +28,13 @@ Requirements: Flutter ≥ 3.44 (stable), `pre-commit`, `gitleaks`. On macOS: `br
 
 The backend must be reachable **directly from the app** with user-supplied credentials — no proxy, no server component owned by this project.
 
+## UI changes
+
+- Design tokens live in `apps/clipboard_sync/lib/ui/app_theme.dart`; use `Theme.of(context)` / `context.colors`, never hardcoded colours.
+- After visual changes regenerate the screenshots used in the README:
+  `cd apps/clipboard_sync && FLUTTER_ROOT=$(dirname $(dirname $(which flutter))) flutter test test_screenshots --update-goldens`
+  and eyeball the PNGs in `docs/screenshots/` in both themes.
+
 ## Never commit
 
 - `.env` files, keystores, certificates, provisioning profiles, `google-services.json`, `GoogleService-Info.plist`, `firebase_options.dart`, `key.properties`

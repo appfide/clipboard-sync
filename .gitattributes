@@ -1,0 +1,23 @@
+# Normalise line endings; binaries untouched.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binaries
+*.png binary
+*.jpg binary
+*.ico binary
+*.icns binary
+*.ttf binary
+*.otf binary
+*.woff2 binary
+*.jar binary
+
+# Generated / vendored code: collapse in diffs and exclude from language stats
+*.g.dart linguist-generated=true -diff
+*.freezed.dart linguist-generated=true -diff
+**/GeneratedPluginRegistrant.* linguist-generated=true
+docs/screenshots/*.png -diff
+apps/clipboard_sync/android/gradle/** linguist-vendored
+apps/clipboard_sync/ios/Runner.xcodeproj/** linguist-vendored
+apps/clipboard_sync/macos/Runner.xcodeproj/** linguist-vendored

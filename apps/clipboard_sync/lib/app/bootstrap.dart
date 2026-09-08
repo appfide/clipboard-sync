@@ -27,7 +27,15 @@ Future<void> bootstrap(List<String> args) async {
   final container = ProviderContainer(
     overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
   );
-  final settings = await container.read(settingsRepositoryProvider).load();
+  var settings = await container.read(settingsRepositoryProvider).load();
+  // Debug/screenshot convenience: `--theme=dark|light` overrides the saved mode for this run.
+  final themeArg = args.firstWhere(
+    (a) => a.startsWith('--theme='),
+    orElse: () => '',
+  );
+  if (themeArg.isNotEmpty) {
+    settings = settings.copyWith(themeMode: themeArg.substring(8));
+  }
   container.dispose();
 
   final startHidden = args.contains('--hidden') || settings.launchHidden;

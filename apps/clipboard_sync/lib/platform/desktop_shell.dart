@@ -42,8 +42,8 @@ class DesktopShell with TrayListener, WindowListener {
     if (!PlatformInfo.isDesktop) return;
     await windowManager.ensureInitialized();
     const options = WindowOptions(
-      size: Size(480, 680),
-      minimumSize: Size(360, 480),
+      size: Size(1040, 720),
+      minimumSize: Size(400, 520),
       center: true,
       title: 'Clipboard Sync',
       skipTaskbar: false,

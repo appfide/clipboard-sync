@@ -47,6 +47,7 @@ class SettingsRepository {
       autoStart: _prefs.getBool('auto_start') ?? false,
       launchHidden: _prefs.getBool('launch_hidden') ?? false,
       hotkeyEnabled: _prefs.getBool('hotkey_enabled') ?? true,
+      themeMode: _prefs.getString('theme_mode') ?? 'system',
     );
   }
 
@@ -82,6 +83,7 @@ class SettingsRepository {
     await _prefs.setBool('auto_start', s.autoStart);
     await _prefs.setBool('launch_hidden', s.launchHidden);
     await _prefs.setBool('hotkey_enabled', s.hotkeyEnabled);
+    await _prefs.setString('theme_mode', s.themeMode);
     await saveBackendValues(s.backendId, s.backendValues);
   }
 

@@ -1,4 +1,6 @@
 import 'package:clipboard_sync/app/router.dart';
+import 'package:clipboard_sync/providers.dart';
+import 'package:clipboard_sync/ui/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -10,16 +12,19 @@ class ClipboardSyncApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
-    const seed = Color(0xFF3B6EA5);
+    final mode = switch (ref.watch(
+      settingsProvider.select((s) => s.themeMode),
+    )) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
     return MaterialApp.router(
       title: 'Clipboard Sync',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(colorSchemeSeed: seed, useMaterial3: true),
-      darkTheme: ThemeData(
-        colorSchemeSeed: seed,
-        brightness: Brightness.dark,
-        useMaterial3: true,
-      ),
+      theme: AppTheme.light(),
+      darkTheme: AppTheme.dark(),
+      themeMode: mode,
       routerConfig: router,
     );
   }

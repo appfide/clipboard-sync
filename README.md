@@ -12,6 +12,16 @@ Clipboard history that syncs across **macOS, Windows, Linux, Android and iOS** t
 - **Local-only mode** — works as a plain clipboard manager with no database at all.
 - **Enterprise repo hygiene** — secret scanning on every commit and in CI, SHA-pinned Actions, reproducible release builds with checksums.
 
+## Screenshots
+
+| History (desktop) | Settings (dark) | About |
+|---|---|---|
+| ![History](docs/screenshots/history-desktop-light.png) | ![Settings](docs/screenshots/settings-desktop-dark.png) | ![About](docs/screenshots/about-desktop-light.png) |
+
+| Onboarding (phone) | History (phone, dark) | Database picker |
+|---|---|---|
+| ![Onboarding](docs/screenshots/onboarding-phone-light.png) | ![History phone](docs/screenshots/history-phone-dark.png) | ![Backend](docs/screenshots/backend-desktop-light.png) |
+
 ## Install
 
 Download the latest installer from [Releases](https://github.com/appfide/clipboard-sync/releases): `.dmg`, `.exe`, `.deb` / `.AppImage`, `.apk`, unsigned `.ipa`. Builds are currently unsigned — see [docs/release.md](docs/release.md#installing-unsigned-builds).
