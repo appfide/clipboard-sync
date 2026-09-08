@@ -1,0 +1,28 @@
+name: clipboard_sync_workspace
+repository: https://github.com/appfide/clipboard-sync
+
+packages:
+  - packages/*
+  - apps/*
+
+command:
+  bootstrap:
+    usePubspecOverrides: true
+
+scripts:
+  analyze:
+    run: melos exec -c 1 -- dart analyze --fatal-infos --fatal-warnings
+    description: Analyze every package.
+  format:
+    run: dart format --set-exit-if-changed .
+    description: Check formatting.
+  test:
+    run: melos exec -c 1 --dir-exists=test -- dart test
+    packageFilters:
+      flutter: false
+    description: Run pure-Dart tests.
+  test:flutter:
+    run: melos exec -c 1 --dir-exists=test -- flutter test
+    packageFilters:
+      flutter: true
+    description: Run Flutter tests.

@@ -1,0 +1,127 @@
+# Gitleaks configuration for appfide/clipboard-sync.
+# Extends the built-in default ruleset and adds rules for every backend this
+# app can talk to. Runs in the pre-commit hook and in CI (full history scan).
+title = "clipboard-sync gitleaks config"
+
+[extend]
+useDefault = true
+
+# ---------------------------------------------------------------------------
+# Custom rules: credentials for the databases this app connects to directly.
+# ---------------------------------------------------------------------------
+
+[[rules]]
+id = "supabase-publishable-key"
+description = "Supabase publishable (anon) key"
+regex = '''sb_publishable_[A-Za-z0-9_-]{20,}'''
+keywords = ["sb_publishable_"]
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase secret (service role) key"
+regex = '''sb_secret_[A-Za-z0-9_-]{20,}'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "supabase-legacy-jwt-key"
+description = "Supabase legacy anon/service_role JWT"
+regex = '''eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'''
+keywords = ["supabase", "anon", "service_role"]
+[rules.allowlist]
+regexes = ['''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IllPVVJfUFJPSkVDVCI''']
+
+[[rules]]
+id = "supabase-project-url-with-key"
+description = "Supabase URL adjacent to an API key"
+regex = '''https://[a-z0-9]{20}\.supabase\.co[^\n]{0,80}(apikey|anon|key)[^\n]{0,20}[A-Za-z0-9_.-]{30,}'''
+keywords = ["supabase.co"]
+
+[[rules]]
+id = "firebase-web-api-key"
+description = "Firebase / Google Cloud web API key"
+regex = '''AIza[0-9A-Za-z_-]{35}'''
+keywords = ["AIza"]
+
+[[rules]]
+id = "firebase-service-account"
+description = "Firebase service account JSON private key"
+regex = '''"private_key"\s*:\s*"-----BEGIN PRIVATE KEY-----'''
+keywords = ["private_key"]
+
+[[rules]]
+id = "mongodb-connection-string"
+description = "MongoDB connection string with embedded credentials"
+regex = '''mongodb(\+srv)?://[^\s:/@]+:[^\s@]+@[^\s"']+'''
+keywords = ["mongodb://", "mongodb+srv://"]
+[rules.allowlist]
+regexes = ['''mongodb(\+srv)?://(USER|user|username|<user>)[^@]*:(PASS|pass|password|<password>|YOUR_PASSWORD)[^@]*@''']
+
+[[rules]]
+id = "couchdb-basic-auth-url"
+description = "CouchDB URL with embedded basic-auth credentials"
+regex = '''https?://[^\s:/@]+:[^\s@]+@[^\s"']*(:5984|couchdb|cloudant)[^\s"']*'''
+keywords = ["5984", "couchdb", "cloudant"]
+[rules.allowlist]
+regexes = ['''https?://(admin|user|USER|<user>):(password|PASS|pass|<password>|YOUR_PASSWORD)@''']
+
+[[rules]]
+id = "pocketbase-admin-token"
+description = "PocketBase admin/superuser auth token"
+regex = '''(pb_auth|pocketbase_token|pb_token)['"]?\s*[:=]\s*['"]?eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'''
+keywords = ["pb_auth", "pocketbase_token", "pb_token"]
+
+[[rules]]
+id = "android-keystore-password"
+description = "Android signing keystore password in gradle/properties"
+regex = '''(?i)(storePassword|keyPassword|store_password|key_password)\s*[=:]\s*['"]?[^\s'"]{4,}'''
+keywords = ["storePassword", "keyPassword", "store_password", "key_password"]
+[rules.allowlist]
+regexes = [
+  '''(?i)(storePassword|keyPassword)\s*[=:]\s*['"]?\$\{?\w+\}?''',
+  '''(?i)(storePassword|keyPassword)\s*[=:]\s*['"]?(System\.getenv|keystoreProperties|project\.property)''',
+  '''(?i)(storePassword|keyPassword)\s*[=:]\s*['"]?(YOUR_|CHANGE_ME|<)''',
+]
+
+[[rules]]
+id = "apple-app-specific-password"
+description = "Apple app-specific password (notarization)"
+regex = '''[a-z]{4}-[a-z]{4}-[a-z]{4}-[a-z]{4}'''
+keywords = ["apple", "notar", "app-specific", "APPLE_"]
+path = '''(?i)(\.env|\.yml|\.yaml|\.sh|\.properties|\.plist)$'''
+
+[[rules]]
+id = "dotenv-file-committed"
+description = "A .env file (other than .env.example) must never be committed"
+regex = '''.+'''
+path = '''(^|/)\.env(\.[^/]+)?$'''
+[rules.allowlist]
+paths = ['''(^|/)\.env\.example$''']
+
+[[rules]]
+id = "credential-file-committed"
+description = "Keystore / certificate / provisioning / service-account file committed"
+regex = '''.*'''
+path = '''(?i)\.(jks|keystore|p12|p8|pem|mobileprovision|cer|certSigningRequest)$|(^|/)(key\.properties|google-services\.json|GoogleService-Info\.plist|firebase_options\.dart|service-account.*\.json)$'''
+
+# ---------------------------------------------------------------------------
+# Global allowlist: placeholders used in docs and tests.
+# ---------------------------------------------------------------------------
+[allowlist]
+description = "Documentation placeholders and fixtures"
+regexTarget = "match"
+regexes = [
+  '''YOUR_[A-Z_]+''',
+  '''CHANGE_ME''',
+  '''<[a-z_-]+>''',
+  '''example\.com''',
+  '''localhost''',
+  '''127\.0\.0\.1''',
+  '''xxxxxxxx''',
+]
+paths = [
+  '''(^|/)\.gitleaks\.toml$''',
+  '''(^|/)pubspec\.lock$''',
+  '''(^|/)Podfile\.lock$''',
+  '''\.g\.dart$''',
+  '''\.freezed\.dart$''',
+]

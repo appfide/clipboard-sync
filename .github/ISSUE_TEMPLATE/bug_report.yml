@@ -1,0 +1,41 @@
+name: Bug report
+description: Something is broken
+labels: [bug, triage]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Never paste database URLs, API keys, tokens or clipboard contents into an issue.** Redact them.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+      placeholder: "0.1.0 (from Settings → About)"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      multiple: true
+      options: [macOS, Windows, Linux, Android, iOS]
+    validations:
+      required: true
+  - type: dropdown
+    id: backend
+    attributes:
+      label: Database backend
+      options: [Supabase, Firestore, PocketBase, CouchDB, MongoDB, "N/A"]
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: Steps to reproduce, expected vs actual.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: Settings → Diagnostics → Copy logs (secrets are redacted automatically, but double-check).
+      render: text
