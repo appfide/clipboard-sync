@@ -42,7 +42,7 @@ Then open the app → *Settings → Database*, paste the values, **Test connecti
 
 ```sh
 git clone https://github.com/appfide/clipboard-sync.git && cd clipboard-sync
-./scripts/bootstrap.sh                      # pre-commit hooks, melos, deps
+./scripts/bootstrap.sh                      # pre-commit hooks, deps
 cd packages/clipsync_core && dart test      # core: models, crypto, sync engine, adapters
 cd ../../apps/clipboard_sync && flutter run -d macos
 ```

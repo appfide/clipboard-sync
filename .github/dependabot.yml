@@ -17,6 +17,14 @@ updates:
       day: monday
     labels: [dependencies, core]
     open-pull-requests-limit: 10
+    ignore:
+      # Requires Dart >= 3.13; we track the Flutter 3.44 stable SDK (Dart 3.12).
+      - dependency-name: very_good_analysis
+        versions: [">=11.0.0"]
+      # Pinned by flutter_test in the app; keep both packages in sync.
+      - dependency-name: clock
+      - dependency-name: meta
+      - dependency-name: collection
 
   - package-ecosystem: pub
     directory: /apps/clipboard_sync
@@ -25,6 +33,18 @@ updates:
       day: monday
     labels: [dependencies, app]
     open-pull-requests-limit: 10
+    ignore:
+      # Requires Dart >= 3.13; we track the Flutter 3.44 stable SDK (Dart 3.12).
+      - dependency-name: very_good_analysis
+        versions: [">=11.0.0"]
+      # build_runner 2.16 does not resolve against this Flutter SDK's pins.
+      - dependency-name: build_runner
+        versions: [">=2.16.0"]
+      # Pinned transitively by flutter_test / flutter_localizations.
+      - dependency-name: clock
+      - dependency-name: intl
+      - dependency-name: meta
+      - dependency-name: collection
 
   - package-ecosystem: gradle
     directory: /apps/clipboard_sync/android

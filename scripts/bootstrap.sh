@@ -8,7 +8,6 @@ command -v gitleaks  >/dev/null || { echo "gitleaks missing: brew install gitlea
 command -v flutter   >/dev/null || { echo "flutter missing: https://docs.flutter.dev/get-started/install"; exit 1; }
 
 pre-commit install --install-hooks
-dart pub global activate melos >/dev/null
-export PATH="$PATH:$HOME/.pub-cache/bin"
-melos bootstrap
+(cd packages/clipsync_core && dart pub get)
+(cd apps/clipboard_sync && flutter pub get)
 echo "Ready. Run: pre-commit run --all-files"

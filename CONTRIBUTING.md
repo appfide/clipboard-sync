@@ -5,7 +5,7 @@
 ```sh
 git clone https://github.com/appfide/clipboard-sync.git
 cd clipboard-sync
-./scripts/bootstrap.sh        # installs pre-commit hooks, melos, fetches deps
+./scripts/bootstrap.sh        # installs pre-commit hooks, fetches deps
 ```
 
 Requirements: Flutter ≥ 3.44 (stable), `pre-commit`, `gitleaks`. On macOS: `brew install pre-commit gitleaks`.
@@ -15,7 +15,7 @@ Requirements: Flutter ≥ 3.44 (stable), `pre-commit`, `gitleaks`. On macOS: `br
 1. Branch from `main`: `feat/<topic>`, `fix/<topic>`, `backend/<db>`.
 2. Commit using [Conventional Commits](https://www.conventionalcommits.org) — enforced by a commit-msg hook.
 3. `pre-commit run --all-files` must pass. It runs gitleaks, formatting, analysis and the credential-file check.
-4. Open a PR against `main`; CI must be green and a CODEOWNER must approve.
+4. Open a PR against `main`; the `main protection` ruleset requires green CI, linear history and squash/rebase merges. Required approvals are 0 while there is a single maintainer — raise to 1 in the ruleset once a second maintainer joins.
 
 ## Adding a database backend
 

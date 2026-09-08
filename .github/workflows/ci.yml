@@ -58,11 +58,10 @@ jobs:
         run: |
           bash <(curl -sSL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.12/scripts/download-actionlint.bash) 1.7.12
           ./actionlint -color
-      - name: Bootstrap workspace
+      - name: Fetch dependencies
         run: |
-          dart pub global activate melos
-          echo "$HOME/.pub-cache/bin" >> "$GITHUB_PATH"
-          "$HOME/.pub-cache/bin/melos" bootstrap
+          (cd packages/clipsync_core && dart pub get)
+          (cd apps/clipboard_sync && flutter pub get)
       - name: dart format
         run: dart format --set-exit-if-changed packages apps
       - name: Analyze core
