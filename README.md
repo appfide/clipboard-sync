@@ -44,9 +44,11 @@ Then open the app → *Settings → Database*, paste the values, **Test connecti
 
 | | Capture | Notes |
 |---|---|---|
-| macOS / Windows / Linux | Automatic, in background | Tray icon, `⌘⇧V` / `Ctrl+Shift+V` opens history |
+| macOS / Windows / Linux | Automatic, in background | Tray icon, `⌘⇧V` / `Ctrl+Shift+V` opens history. Linux runs under XWayland by default (native Wayland restricts clipboard access). |
 | Android | When the app is open | Android 10+ blocks background clipboard access. Copy, then open the app or tap *Capture*. |
-| iOS | When the app is open | iOS asks permission on first paste access. No background capture is possible. |
+| iOS | When the app is open | iOS asks "Allow Paste?" unless you set *Settings → Clipboard Sync → Paste from Other Apps → Allow*. No background capture is possible. |
+
+Details, prompts and data-protection notes: [docs/platforms.md](docs/platforms.md). Settings → *Permissions* has a live clipboard-access test.
 
 ## Development
 

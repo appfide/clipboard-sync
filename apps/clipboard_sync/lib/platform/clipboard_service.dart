@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:clipboard_sync/core/logging.dart';
 import 'package:clipboard_sync/core/platform_info.dart';
@@ -23,6 +24,30 @@ class ClipboardSnapshot {
 
   /// Raw bytes for images.
   final Uint8List? bytes;
+}
+
+/// Outcome of a clipboard access check.
+enum ClipboardAccess {
+  /// Content was read.
+  ok,
+
+  /// Nothing on the clipboard; access itself is unknown.
+  empty,
+
+  /// Read failed or was denied.
+  blocked,
+}
+
+/// Result of [ClipboardService.probe].
+class ClipboardProbe {
+  /// Creates a probe result.
+  const ClipboardProbe(this.access, this.message);
+
+  /// Outcome.
+  final ClipboardAccess access;
+
+  /// Human-readable detail.
+  final String message;
 }
 
 /// Reads/writes the system clipboard and turns changes into [ClipItem]s.
@@ -98,7 +123,21 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) unawaited(checkNow());
+    if (state == AppLifecycleState.resumed) unawaited(_checkAfterResume());
+  }
+
+  /// Android 10+ only serves clipboard reads to the focused window, and focus
+  /// lands a beat after `resumed`; iOS is similar. Wait briefly, then retry
+  /// once if the first read came back empty.
+  Future<void> _checkAfterResume() async {
+    if (!PlatformInfo.isMobile) return checkNow();
+    await Future<void>.delayed(const Duration(milliseconds: 400));
+    final before = _lastSeenHash;
+    await checkNow();
+    if (_lastSeenHash == before) {
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      await checkNow();
+    }
   }
 
   /// Reads the clipboard and emits a [ClipItem] if it changed.
@@ -146,6 +185,9 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
 
   /// Reads the current clipboard without emitting.
   Future<ClipboardSnapshot?> read() async {
+    if (Platform.isIOS && !captureImages && !(await Clipboard.hasStrings())) {
+      return null; // avoids the iOS "Allow paste?" prompt for an empty board
+    }
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text;
     if (text != null && text.isNotEmpty) {
@@ -175,6 +217,40 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
       }
     }
     return null;
+  }
+
+  /// Checks whether the clipboard can be read right now. Used by the
+  /// Permissions section in Settings.
+  Future<ClipboardProbe> probe() async {
+    try {
+      final snap = await read();
+      if (snap == null) {
+        final hasText = await Clipboard.hasStrings();
+        return hasText
+            ? const ClipboardProbe(
+                ClipboardAccess.blocked,
+                'The clipboard has text but it could not be read. Check the permission for this platform below.',
+              )
+            : const ClipboardProbe(
+                ClipboardAccess.empty,
+                'Clipboard is empty. Copy some text and test again.',
+              );
+      }
+      final what = snap.type.isBinary
+          ? 'an image (${(snap.bytes!.length / 1024).toStringAsFixed(0)} KB)'
+          : '${snap.text.length} characters of ${snap.type.wire}';
+      return ClipboardProbe(ClipboardAccess.ok, 'Read $what successfully.');
+    } on PlatformException catch (e) {
+      return ClipboardProbe(
+        ClipboardAccess.blocked,
+        'Clipboard read failed: ${e.message ?? e.code}',
+      );
+    } on MissingPluginException {
+      return const ClipboardProbe(
+        ClipboardAccess.blocked,
+        'Clipboard plugin unavailable in this build.',
+      );
+    }
   }
 
   /// Puts [item] on the clipboard and suppresses the resulting echo.

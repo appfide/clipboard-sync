@@ -24,11 +24,17 @@ class SettingsRepository {
       'backend.$backendId.$key';
 
   /// Loads settings, creating the device id on first launch.
-  Future<AppSettings> load() async {
-    var deviceId = await _secure.read(_kDeviceId);
+  ///
+  /// With [includeSecrets] false, sensitive backend fields are left out so
+  /// the call never touches the OS credential store — bootstrap uses this so
+  /// a keychain prompt cannot block the first frame; secrets are merged in
+  /// afterwards with [loadBackendValues].
+  Future<AppSettings> load({bool includeSecrets = true}) async {
+    // The device id is an identifier, not a credential: plain preferences.
+    var deviceId = _prefs.getString(_kDeviceId);
     if (deviceId == null || deviceId.isEmpty) {
       deviceId = const Uuid().v4();
-      await _secure.write(_kDeviceId, deviceId);
+      await _prefs.setString(_kDeviceId, deviceId);
     }
     final backendId = _prefs.getString('backend_id') ?? 'memory';
     return AppSettings(
@@ -37,7 +43,10 @@ class SettingsRepository {
           _prefs.getString('device_name') ?? PlatformInfo.defaultDeviceName,
       onboarded: _prefs.getBool('onboarded') ?? false,
       backendId: backendId,
-      backendValues: await loadBackendValues(backendId),
+      backendValues: await loadBackendValues(
+        backendId,
+        includeSecrets: includeSecrets,
+      ),
       encryptionEnabled: _prefs.getBool('encryption_enabled') ?? false,
       pollIntervalSeconds: _prefs.getInt('poll_interval_seconds') ?? 5,
       retentionDays: _prefs.getInt('retention_days') ?? 30,
@@ -51,12 +60,17 @@ class SettingsRepository {
     );
   }
 
-  /// Reads the stored form values for [backendId] (secrets from keychain).
-  Future<Map<String, String>> loadBackendValues(String backendId) async {
+  /// Reads the stored form values for [backendId] (secrets from keychain
+  /// unless [includeSecrets] is false).
+  Future<Map<String, String>> loadBackendValues(
+    String backendId, {
+    bool includeSecrets = true,
+  }) async {
     final d = _registry.descriptor(backendId);
     if (d == null) return const {};
     final out = <String, String>{};
     for (final f in d.configSchema) {
+      if (f.isSensitive && !includeSecrets) continue;
       final v = f.isSensitive
           ? await _secure.read(_kSecret(backendId, f.key))
           : _prefs.getString(_kPlain(backendId, f.key));

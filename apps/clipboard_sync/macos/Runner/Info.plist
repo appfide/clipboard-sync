@@ -28,5 +28,9 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Clipboard Sync connects to a self-hosted database on your local network when you configure one.</string>
+	<key>LSUIElement</key>
+	<false/>
 </dict>
 </plist>

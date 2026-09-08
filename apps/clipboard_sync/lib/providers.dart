@@ -86,6 +86,14 @@ class SettingsNotifier extends Notifier<AppSettings> {
     }
   }
 
+  /// Merges lazily loaded secret fields into the current state without
+  /// persisting (they already live in the credential store).
+  void seedBackendValues(Map<String, String> values) {
+    state = state.copyWith(
+      backendValues: <String, String>{...state.backendValues, ...values},
+    );
+  }
+
   /// Switches backend and loads its stored values.
   Future<void> selectBackend(String backendId) async {
     final values = await ref

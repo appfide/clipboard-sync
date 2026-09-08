@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:clipboard_sync/core/platform_info.dart';
+import 'package:clipboard_sync/features/settings/permissions_section.dart';
 import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
 import 'package:clipboard_sync/ui/widgets/section_card.dart';
@@ -128,16 +129,9 @@ class SettingsPage extends ConsumerWidget {
                       (x) => x.copyWith(writeIncomingToClipboard: v),
                     ),
                   ),
-                  if (PlatformInfo.isMobile)
-                    const SettingRow(
-                      icon: Icons.info_outline_rounded,
-                      title: 'Mobile capture',
-                      subtitle:
-                          'The OS only allows reading the clipboard while the app is open. Copy, then open the app or tap Capture.',
-                      tint: AppTokens.amber600,
-                    ),
                 ],
               ),
+              const PermissionsSection(),
               if (PlatformInfo.isDesktop)
                 SectionCard(
                   title: 'Desktop',

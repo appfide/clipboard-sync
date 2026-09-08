@@ -1,0 +1,44 @@
+# Platform behaviour and permissions
+
+What each OS allows a clipboard manager to do, which permissions Clipboard
+Sync needs, and what the app does about the gaps. Settings → *Permissions*
+shows the same guidance in-app together with a live **Test** button.
+
+| | Background capture | Global hotkey | Start at login | OS permission prompts |
+|---|---|---|---|---|
+| macOS | Yes — polls `NSPasteboard.changeCount`, reads on change | Yes (Carbon `RegisterEventHotKey`, no Accessibility access needed) | Launch Agent in `~/Library/LaunchAgents` | Possible one-time pasteboard prompt on macOS 26+; Local Network prompt for LAN databases; keychain prompt on unsigned builds (see below) |
+| Windows | Yes — `AddClipboardFormatListener` | Yes (`RegisterHotKey`) | `HKCU\…\Run` value | None |
+| Linux (X11 / XWayland) | Yes — GTK clipboard polling | Yes (keybinder) | `~/.config/autostart/*.desktop` | None. Secret Service (GNOME Keyring / KWallet) used for credentials when present |
+| Linux (native Wayland) | Only while focused | No | same | The app defaults to XWayland (`GDK_BACKEND=x11`); set `GDK_BACKEND=wayland` to override |
+| Android | No — Android 10+ serves clipboard reads only to the focused app | n/a | n/a | No permission exists. Android 12+ shows a "pasted from …" notice on each read |
+| iOS | No — never in background | n/a | n/a | "Allow Paste?" on reads of content from other apps unless *Settings → Clipboard Sync → Paste from Other Apps → Allow*; Local Network prompt for LAN databases |
+
+## Mobile capture flow
+
+Copy in any app → open Clipboard Sync (or tap **Capture**) → the app reads
+the clipboard on resume. Android hands window focus over slightly after the
+`resumed` lifecycle event, so the read is delayed 400 ms and retried once.
+On iOS the app checks `hasStrings` first, which does not trigger the paste
+prompt, and only reads when there is something to read.
+
+## macOS keychain and unsigned builds
+
+Credentials are stored in the login keychain. macOS binds each keychain item
+to the signature of the app that created it. Release builds are currently
+**unsigned** (ad-hoc signature), so after updating the app macOS shows
+"Clipboard Sync wants to use your confidential information stored in …" —
+click **Always Allow**. The app never blocks on that prompt: startup reads
+only preferences, secrets are loaded after the first frame, and every
+keychain call is bounded by a 10 s timeout with a preferences fallback that
+is surfaced as a warning in Settings. Code-signing the release (see
+`docs/release.md`) removes the prompt entirely.
+
+## Data protection
+
+- Android: `allowBackup="false"` and data-extraction rules exclude all app
+  data from cloud backup and device transfer.
+- macOS: the app runs without the App Sandbox (it is not distributed through
+  the App Store) so it can register the Launch Agent and read the pasteboard
+  from the menu bar.
+- All platforms: credentials go to the OS credential store; the local history
+  database stays in the app's private data directory.

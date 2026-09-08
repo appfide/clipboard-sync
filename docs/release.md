@@ -19,6 +19,8 @@
 
 ## Installing unsigned builds
 
+- **macOS keychain prompt**: unsigned builds get a new ad-hoc signature every release, so after an update macOS asks to allow access to the stored credentials — click *Always Allow*. Signing with a Developer ID (below) makes the signature stable and removes the prompt.
+
 - **macOS**: right-click the app → *Open* → *Open*; or
   `xattr -dr com.apple.quarantine "/Applications/Clipboard Sync.app"`.
 - **Windows**: SmartScreen → *More info* → *Run anyway*.

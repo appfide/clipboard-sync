@@ -5,6 +5,7 @@ import 'package:clipboard_sync/app/app.dart';
 import 'package:clipboard_sync/app/router.dart';
 import 'package:clipboard_sync/core/logging.dart';
 import 'package:clipboard_sync/core/platform_info.dart';
+import 'package:clipboard_sync/data/settings/app_settings.dart';
 import 'package:clipboard_sync/features/sync/sync_controller.dart';
 import 'package:clipboard_sync/platform/desktop_shell.dart';
 import 'package:clipboard_sync/providers.dart';
@@ -27,7 +28,11 @@ Future<void> bootstrap(List<String> args) async {
   final container = ProviderContainer(
     overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
   );
-  var settings = await container.read(settingsRepositoryProvider).load();
+  // Preferences only: the OS credential store is read after the first frame
+  // so a keychain prompt (unsigned macOS builds) can never block startup.
+  var settings = await container
+      .read(settingsRepositoryProvider)
+      .load(includeSecrets: false);
   // Debug/screenshot convenience: `--theme=dark|light` overrides the saved mode for this run.
   final themeArg = args.firstWhere(
     (a) => a.startsWith('--theme='),
@@ -69,5 +74,16 @@ Future<void> bootstrap(List<String> args) async {
 
   await shell?.init(hotkeyEnabled: settings.hotkeyEnabled);
   log.i('started on ${PlatformInfo.name} as ${settings.deviceName}');
-  unawaited(app.read(syncControllerProvider.notifier).start());
+  unawaited(_loadSecretsAndStart(app, settings));
+}
+
+Future<void> _loadSecretsAndStart(
+  ProviderContainer app,
+  AppSettings settings,
+) async {
+  final secrets = await app
+      .read(settingsRepositoryProvider)
+      .loadBackendValues(settings.backendId);
+  app.read(settingsProvider.notifier).seedBackendValues(secrets);
+  await app.read(syncControllerProvider.notifier).start();
 }

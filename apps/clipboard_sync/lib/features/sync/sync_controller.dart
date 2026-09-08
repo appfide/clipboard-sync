@@ -84,6 +84,14 @@ class SyncController extends Notifier<SyncStatus> {
   /// Reads the clipboard immediately (mobile entry points).
   Future<void> captureNow() async => _clipboard?.checkNow();
 
+  /// Checks clipboard access for the Permissions section.
+  Future<ClipboardProbe> probeClipboard() async =>
+      _clipboard?.probe() ??
+      const ClipboardProbe(
+        ClipboardAccess.blocked,
+        'Capture service not running.',
+      );
+
   /// Writes [item] to the clipboard.
   Future<void> copyToClipboard(ClipItem item) async => _clipboard?.write(item);
 

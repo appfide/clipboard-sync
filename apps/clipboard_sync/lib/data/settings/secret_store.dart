@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:clipboard_sync/core/logging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -9,6 +11,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// unsigned macOS build without keychain entitlements, or a Linux desktop
 /// without a Secret Service) it falls back to app preferences and flags
 /// [degraded] so Settings can warn the user.
+///
+/// Every call is bounded by [timeout]: on macOS an unsigned build whose
+/// signature changed since the keychain item was created blocks in a
+/// SecurityAgent prompt until the user answers, and the app must not hang.
 class SecretStore {
   /// Creates a store.
   SecretStore(this._secure, this._prefs);
@@ -16,6 +22,9 @@ class SecretStore {
   final FlutterSecureStorage _secure;
   final SharedPreferences _prefs;
   static const _fallbackPrefix = 'secret_fallback.';
+
+  /// Upper bound for one credential-store call.
+  static const Duration timeout = Duration(seconds: 10);
 
   final ValueNotifier<bool> _degraded = ValueNotifier(false);
 
@@ -25,11 +34,13 @@ class SecretStore {
   /// Reads a secret.
   Future<String?> read(String key) async {
     try {
-      final v = await _secure.read(key: key);
+      final v = await _secure.read(key: key).timeout(timeout);
       if (v != null) return v;
     } on PlatformException catch (e) {
       _fail(e);
     } on MissingPluginException catch (e) {
+      _fail(e);
+    } on TimeoutException catch (e) {
       _fail(e);
     }
     return _prefs.getString('$_fallbackPrefix$key');
@@ -39,12 +50,14 @@ class SecretStore {
   Future<void> write(String key, String? value) async {
     if (value == null || value.isEmpty) return delete(key);
     try {
-      await _secure.write(key: key, value: value);
+      await _secure.write(key: key, value: value).timeout(timeout);
       await _prefs.remove('$_fallbackPrefix$key');
       return;
     } on PlatformException catch (e) {
       _fail(e);
     } on MissingPluginException catch (e) {
+      _fail(e);
+    } on TimeoutException catch (e) {
       _fail(e);
     }
     await _prefs.setString('$_fallbackPrefix$key', value);
@@ -53,10 +66,12 @@ class SecretStore {
   /// Deletes a secret from both locations.
   Future<void> delete(String key) async {
     try {
-      await _secure.delete(key: key);
+      await _secure.delete(key: key).timeout(timeout);
     } on PlatformException catch (e) {
       _fail(e);
     } on MissingPluginException catch (e) {
+      _fail(e);
+    } on TimeoutException catch (e) {
       _fail(e);
     }
     await _prefs.remove('$_fallbackPrefix$key');
