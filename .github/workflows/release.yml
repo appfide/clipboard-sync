@@ -16,7 +16,7 @@ permissions:
 env:
   FLUTTER_VERSION: "3.44.4"
   APP_DIR: apps/clipboard_sync
-  ARTIFACT_NAME: "ClipboardSync-{{build_name}}-{{platform}}-{{arch}}.{{ext}}"
+  ARTIFACT_NAME: "ClipboardSync-{{build_name}}-{{platform}}.{{ext}}"
 
 jobs:
   # ---------------------------------------------------------------------------

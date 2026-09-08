@@ -1,11 +1,12 @@
 # Default owners for everything in the repo. Reviews from a listed owner are
-# required on protected branches.
-*                                   @appfide/maintainers @dhipin
+# required on protected branches. Replace/extend with an org team
+# (e.g. @appfide/maintainers) once one exists.
+*                                   @dhipin
 
 # Security-sensitive paths require an explicit security review.
-/.github/                           @appfide/maintainers @dhipin
-/.gitleaks.toml                     @appfide/maintainers @dhipin
-/.pre-commit-config.yaml            @appfide/maintainers @dhipin
-/scripts/                           @appfide/maintainers @dhipin
-/packages/clipsync_core/lib/src/crypto/   @appfide/maintainers @dhipin
-/packages/clipsync_core/lib/src/backends/ @appfide/maintainers @dhipin
+/.github/                           @dhipin
+/.gitleaks.toml                     @dhipin
+/.pre-commit-config.yaml            @dhipin
+/scripts/                           @dhipin
+/packages/clipsync_core/lib/src/crypto/   @dhipin
+/packages/clipsync_core/lib/src/backends/ @dhipin

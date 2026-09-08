@@ -11,9 +11,9 @@
 
 | Platform | Artifact | Signed? |
 |---|---|---|
-| macOS | `ClipboardSync-<v>-macos-x86_64.dmg` (universal via Rosetta on arm64 runners) | No |
-| Windows | `…-windows-x86_64.exe` (Inno Setup) + `.zip` portable | No |
-| Linux | `…-linux-x86_64.deb`, `….AppImage` | n/a |
+| macOS | `ClipboardSync-<v>-macos.dmg` (arm64; Intel Macs run it via Rosetta) | No |
+| Windows | `…-windows.exe` (Inno Setup) + `.zip` portable | No |
+| Linux | `…-linux.deb`, `…-linux.AppImage` (x86_64) | n/a |
 | Android | `…-android.apk`, `.aab` | Debug key unless secrets set |
 | iOS | `ClipboardSync-<v>-ios-unsigned.ipa` | No — sideload with AltStore/Sideloadly or re-sign |
 

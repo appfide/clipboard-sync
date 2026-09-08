@@ -1,5 +1,5 @@
 # flutter_distributor configuration. CI invokes:
-#   flutter_distributor package --platform <p> --targets <t> --artifact-name '{{name}}-{{build_name}}-{{platform}}.{{ext}}' --build-dart-define APP_VERSION=... --build-dart-define GIT_SHA=...
+#   flutter_distributor package --platform <p> --targets <t> --artifact-name 'ClipboardSync-{{build_name}}-{{platform}}.{{ext}}' --build-dart-define APP_VERSION=... --build-dart-define GIT_SHA=...
 # The release entries below are for local, all-in-one runs:
 #   flutter_distributor release --name local-<platform>
 output: dist/
