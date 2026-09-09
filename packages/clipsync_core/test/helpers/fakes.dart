@@ -1,4 +1,5 @@
 import 'package:clipsync_core/clipsync_core.dart';
+import 'package:uuid/uuid.dart';
 
 /// In-memory [LocalStore] mirroring the drift implementation's semantics.
 class FakeLocalStore implements LocalStore {
@@ -50,9 +51,8 @@ class FakeLocalStore implements LocalStore {
   Future<void> saveCursor(DateTime c) async => cursor = c;
 }
 
-int _seq = 0;
-
-/// Builds a text item with deterministic ids.
+/// Builds a text item with a fresh UUID (backends such as Supabase type the
+/// id column as uuid).
 ClipItem textItem(
   String text, {
   String deviceId = 'dev-a',
@@ -61,7 +61,7 @@ ClipItem textItem(
 }) {
   final now = at ?? DateTime.now().toUtc();
   return ClipItem.create(
-    id: 'item-${_seq++}-${now.microsecondsSinceEpoch}',
+    id: const Uuid().v4(),
     deviceId: deviceId,
     deviceName: deviceName,
     type: ClipContentType.text,

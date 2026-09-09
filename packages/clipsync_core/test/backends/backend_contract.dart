@@ -1,5 +1,6 @@
 import 'package:clipsync_core/clipsync_core.dart';
 import 'package:test/test.dart';
+import 'package:uuid/uuid.dart';
 
 import '../helpers/fakes.dart';
 
@@ -66,7 +67,7 @@ void runBackendContractTests(
       final now = DateTime.now().toUtc().add(const Duration(seconds: 5));
       await b.tombstone(i.id, now);
       await b.tombstone(i.id, now);
-      await b.tombstone('does-not-exist', now);
+      await b.tombstone(const Uuid().v4(), now); // unknown id is a no-op
       final got = await b.pullSince(i.updatedAt, excludeDeviceId: 'dev-a');
       final t = got.firstWhere((x) => x.id == i.id);
       expect(t.isDeleted, isTrue);
