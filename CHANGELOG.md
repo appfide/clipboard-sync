@@ -6,23 +6,24 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
-### Added
-- Settings → Permissions: per-platform clipboard/hotkey/autostart guidance with a live clipboard access test.
-- Professional UI: Inter typeface, explicit light/dark design tokens (`lib/ui/app_theme.dart`), adaptive shell (navigation rail on desktop, bottom bar on phones), card-based history grouped by day with hover/press states, database picker grid, redesigned settings and diagnostics.
-- About page with app info and Appfide company details.
-- Appearance setting (System / Light / Dark) and `--theme=` launch flag.
-- Golden screenshot suite (`apps/clipboard_sync/test_screenshots`) that renders every screen to `docs/screenshots/`.
-
-### Changed
-- macOS: App Sandbox disabled (not App Store distributed) so start-at-login and tray capture work; keychain access is non-blocking with a 10 s timeout and preferences fallback.
-- Android: app data excluded from cloud backup and device transfer; clipboard read after resume is delayed and retried to match focus timing.
-- iOS: `hasStrings` gate avoids needless paste prompts; Local Network usage description added.
-- Linux: defaults to XWayland so background clipboard watching and the global hotkey work on Wayland desktops.
-
-## [0.1.0] - 2026-09-08
+## [0.1.0] - 2026-09-09
 
 ### Added
-- Initial cross-platform clipboard sync (macOS, Windows, Linux, Android, iOS).
-- Pluggable backends: Supabase, PocketBase, CouchDB, Firestore (REST), MongoDB.
-- Optional end-to-end encryption (AES-256-GCM, Argon2id).
-- Automated release builds: dmg, exe, AppImage, deb, apk, aab, unsigned ipa.
+- Cross-platform clipboard sync for macOS, Windows, Linux, Android and iOS.
+- Pluggable backends with their own schemas and settings forms: Supabase, PocketBase, CouchDB / Cloudant, Firebase Firestore (REST), MongoDB (driver), plus a local-only mode.
+- Optional end-to-end encryption (Argon2id-derived AES-256-GCM); the database only ever stores ciphertext.
+- Desktop: tray icon, global hotkey (`⌘⇧V` / `Ctrl+Shift+V`), start at login, background capture.
+- Mobile: capture on resume and via the Capture action; guidance for the OS clipboard restrictions.
+- Settings → Permissions with a live clipboard access test and per-platform instructions.
+- Appearance setting (System / Light / Dark) and a `--theme=` launch flag.
+- About page with project links and Appfide company details.
+- Diagnostics screen with redacted, copyable logs.
+- Automated release builds: dmg, exe + zip, deb + AppImage, apk + aab, unsigned ipa, with `SHA256SUMS.txt`.
+
+### Security
+- Credentials live in the OS credential store with a bounded, non-blocking fallback; secrets are never logged (all log lines are redacted).
+- Android app data excluded from cloud backup and device transfer.
+- Repository gates: gitleaks + pre-commit locally, full-history secret scan in CI, SHA-pinned actions, branch and tag rulesets.
+
+[Unreleased]: https://github.com/appfide/clipboard-sync/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/appfide/clipboard-sync/releases/tag/v0.1.0
