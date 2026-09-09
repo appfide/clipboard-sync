@@ -98,7 +98,18 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
       clipboardWatcher.addListener(this);
       await clipboardWatcher.start();
     }
-    await checkNow();
+    if (PlatformInfo.isDesktop) {
+      unawaited(checkNow());
+    } else if (Platform.isAndroid) {
+      // Android needs window focus first; read once the UI is up.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Future<void>.delayed(const Duration(seconds: 1), checkNow);
+      });
+    }
+    // iOS: no read at launch. Its "Allow Paste?" alert is modal on the main
+    // thread and would greet every cold start; capture happens on resume
+    // (when the user has actually copied something) or via the Capture
+    // button instead.
   }
 
   /// Stops watching.

@@ -36,7 +36,11 @@ class SyncController extends Notifier<SyncStatus> {
             ..captureImages = next.captureImages
             ..maxInlineBytes = next.maxInlineKb * 1024;
         }
-        if (AppSettings.syncAffecting(prev, next)) unawaited(restart());
+        // Only a running engine needs restarting; before start() the seeded
+        // secrets simply become part of the initial configuration.
+        if (_engine != null && AppSettings.syncAffecting(prev, next)) {
+          unawaited(restart());
+        }
       })
       ..onDispose(() => unawaited(_teardown()));
     return const SyncStatus.stopped();
@@ -48,10 +52,13 @@ class SyncController extends Notifier<SyncStatus> {
   /// Clipboard service (for share/notification entry points).
   ClipboardService? get clipboard => _clipboard;
 
-  /// Starts capture + sync from current settings.
+  /// Starts sync, then clipboard capture, from current settings.
   Future<void> start() async {
     final s = ref.read(settingsProvider);
     final store = ref.read(localStoreProvider);
+    // Engine first: a clipboard permission prompt on mobile must never
+    // delay connecting to the backend.
+    await _startEngine(s);
     if (_clipboard == null) {
       final c = ClipboardService(
         deviceId: s.deviceId,
@@ -69,7 +76,6 @@ class SyncController extends Notifier<SyncStatus> {
       _clipboard = c;
       await c.start();
     }
-    await _startEngine(s);
   }
 
   /// Stops and starts the engine (settings changed).
@@ -136,6 +142,8 @@ class SyncController extends Notifier<SyncStatus> {
   }
 
   Future<void> _startEngine(AppSettings s) async {
+    // Never run two engines against the same store.
+    if (_engine != null || _backend != null) await _stopEngine();
     final registry = ref.read(backendRegistryProvider);
     final store = ref.read(localStoreProvider);
     final descriptor = registry.descriptor(s.backendId);
