@@ -191,21 +191,63 @@ class MongoDbBackend implements SyncBackend {
     }
   }
 
+  Map<String, dynamic> _deviceDoc(Device d) => <String, dynamic>{
+    ...d.toMap()..remove('id'),
+    '_id': d.id,
+    'last_seen': d.lastSeen.toUtc(),
+    'expires_at': d.expiresAt?.toUtc(),
+  };
+
   @override
   Future<void> registerDevice(Device device) async {
     try {
       final db = await _open();
-      final m = device.toMap();
-      await db.collection(_devicesCollection).replaceOne(
+      // $set presence; $setOnInsert membership defaults so an existing
+      // row's status / role / expiry survive the heartbeat.
+      await db.collection(_devicesCollection).updateOne(
         where.eq('_id', device.id),
         {
-          '_id': device.id,
-          'name': m['name'],
-          'platform': m['platform'],
-          'last_seen': device.lastSeen.toUtc(),
+          r'$set': {
+            'name': device.name,
+            'platform': device.platform,
+            'last_seen': device.lastSeen.toUtc(),
+            'app_version': device.appVersion,
+          },
+          r'$setOnInsert': {
+            'status': device.status.wire,
+            'role': device.role.wire,
+            'expires_at': device.expiresAt?.toUtc(),
+            'paired_by': device.pairedBy,
+          },
         },
         upsert: true,
       );
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
+
+  @override
+  Future<void> updateDevice(Device device) async {
+    try {
+      final db = await _open();
+      await db
+          .collection(_devicesCollection)
+          .replaceOne(
+            where.eq('_id', device.id),
+            _deviceDoc(device),
+            upsert: true,
+          );
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
+
+  @override
+  Future<void> deleteDevice(String id) async {
+    try {
+      final db = await _open();
+      await db.collection(_devicesCollection).deleteOne(where.eq('_id', id));
     } catch (e) {
       throw _wrap(e);
     }
@@ -222,10 +264,8 @@ class MongoDbBackend implements SyncBackend {
       return docs
           .map(
             (d) => Device.fromMap(<String, Object?>{
+              ...Map<String, Object?>.from(d),
               'id': d['_id'],
-              'name': d['name'],
-              'platform': d['platform'],
-              'last_seen': d['last_seen'],
             }),
           )
           .toList();

@@ -75,6 +75,57 @@ ClipItem _clip(
   );
 }
 
+Device _device(
+  String id,
+  String name,
+  String platform, {
+  required Duration ago,
+  DeviceStatus status = DeviceStatus.active,
+  DeviceRole role = DeviceRole.full,
+  Duration? expiresIn,
+  bool pending = false,
+}) => Device(
+  id: id,
+  name: name,
+  platform: platform,
+  lastSeen: pending
+      ? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true)
+      : DateTime.now().toUtc().subtract(ago),
+  status: status,
+  role: role,
+  expiresAt: expiresIn == null ? null : DateTime.now().toUtc().add(expiresIn),
+  appVersion: '0.2.0',
+);
+
+final List<Device> _devices = [
+  _device('macbook-pro', 'MacBook Pro', 'macos', ago: Duration.zero),
+  _device('pixel-9', 'Pixel 9', 'android', ago: const Duration(minutes: 1)),
+  _device(
+    'work-pc',
+    'Work PC',
+    'windows',
+    ago: const Duration(hours: 1),
+    role: DeviceRole.sendOnly,
+    expiresIn: const Duration(hours: 5),
+  ),
+  _device('iphone', 'iPhone', 'ios', ago: const Duration(hours: 3)),
+  _device(
+    'living-room-tv',
+    'Living room TV',
+    'linux',
+    ago: const Duration(days: 2),
+    role: DeviceRole.receiveOnly,
+  ),
+  _device(
+    'old-laptop',
+    'Old laptop',
+    'linux',
+    ago: const Duration(days: 12),
+    status: DeviceStatus.blocked,
+  ),
+  _device('pending', 'Pending device', '', ago: Duration.zero, pending: true),
+];
+
 Future<AppDatabase> _seededDb() async {
   final db = AppDatabase.withExecutor(NativeDatabase.memory());
   final store = DriftLocalStore(db);
@@ -184,6 +235,7 @@ void main() {
           databaseProvider.overrideWithValue(db),
           settingsProvider.overrideWith(() => SeededSettings(settings)),
           syncControllerProvider.overrideWith(_LiveSync.new),
+          deviceListProvider.overrideWith((ref) => Stream.value(_devices)),
           routerProvider.overrideWithValue(router),
         ],
         child: MaterialApp.router(
@@ -266,6 +318,29 @@ void main() {
       location: '/settings/backend',
       mode: ThemeMode.light,
       size: desktop,
+    ),
+  );
+  testWidgets(
+    'devices desktop light',
+    timeout: const Timeout(Duration(seconds: 60)),
+    (t) => shot(
+      t,
+      name: 'devices-desktop-light',
+      location: '/settings/devices',
+      mode: ThemeMode.light,
+      size: desktop,
+    ),
+  );
+  testWidgets(
+    'devices phone dark',
+    timeout: const Timeout(Duration(seconds: 60)),
+    (t) => shot(
+      t,
+      name: 'devices-phone-dark',
+      location: '/settings/devices',
+      mode: ThemeMode.dark,
+      size: phone,
+      dpr: 3,
     ),
   );
   testWidgets(

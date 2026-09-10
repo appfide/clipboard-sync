@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:clipboard_sync/core/platform_info.dart';
 import 'package:clipboard_sync/data/local/local_store.dart';
+import 'package:clipboard_sync/features/devices/device_picker.dart';
 import 'package:clipboard_sync/features/sync/sync_controller.dart';
 import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
@@ -203,6 +204,28 @@ class _ClipCardState extends ConsumerState<_ClipCard> {
     final c = context.colors;
     final controller = ref.read(syncControllerProvider.notifier);
     final store = ref.read(localStoreProvider);
+    final ownId = ref.watch(settingsProvider.select((s) => s.deviceId));
+    final targets = sendTargets(
+      ref.watch(deviceListProvider).value ?? const [],
+      ownId,
+    );
+
+    Future<void> sendTo() async {
+      final id = await pickDevice(context, targets);
+      if (id == null) return;
+      await controller.sendToDevice(item, id);
+      if (context.mounted) {
+        final name = targets.firstWhere((d) => d.id == id).name;
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(
+            SnackBar(
+              content: Text('Sent to $name'),
+              duration: const Duration(seconds: 2),
+            ),
+          );
+      }
+    }
 
     Future<void> copy() async {
       await controller.copyToClipboard(item);
@@ -288,6 +311,17 @@ class _ClipCardState extends ConsumerState<_ClipCard> {
                             color: c.muted,
                           ),
                         ],
+                        if (item.isTargeted) ...[
+                          const SizedBox(width: 6),
+                          Tooltip(
+                            message: 'Sent only to this device',
+                            child: Icon(
+                              Icons.send_rounded,
+                              size: 14,
+                              color: scheme.primary,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
@@ -313,6 +347,8 @@ class _ClipCardState extends ConsumerState<_ClipCard> {
                         switch (v) {
                           case 'copy':
                             await copy();
+                          case 'send':
+                            await sendTo();
                           case 'pin':
                             await store.setPinned(
                               item.id,
@@ -327,6 +363,11 @@ class _ClipCardState extends ConsumerState<_ClipCard> {
                           value: 'copy',
                           child: _MenuRow(Icons.copy_rounded, 'Copy'),
                         ),
+                        if (targets.isNotEmpty)
+                          const PopupMenuItem(
+                            value: 'send',
+                            child: _MenuRow(Icons.send_rounded, 'Send to…'),
+                          ),
                         PopupMenuItem(
                           value: 'pin',
                           child: _MenuRow(

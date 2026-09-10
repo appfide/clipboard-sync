@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:clipboard_sync/features/sync/sync_controller.dart';
 import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
@@ -48,6 +50,10 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.listen<RevocationNotice?>(revocationProvider, (prev, next) {
+      if (next == null) return;
+      unawaited(_showRevoked(context, ref, next));
+    });
     final location = GoRouterState.of(context).uri.path;
     final index = _indexOf(location);
     final wide =
@@ -127,4 +133,33 @@ class AppShell extends ConsumerWidget {
       ),
     );
   }
+}
+
+Future<void> _showRevoked(
+  BuildContext context,
+  WidgetRef ref,
+  RevocationNotice notice,
+) async {
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      key: const ValueKey('revoked-dialog'),
+      icon: Icon(
+        Icons.person_off_rounded,
+        color: Theme.of(ctx).colorScheme.error,
+      ),
+      title: Text(notice.title),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Text(notice.detail),
+      ),
+      actions: [
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx),
+          child: const Text('OK'),
+        ),
+      ],
+    ),
+  );
+  ref.read(revocationProvider.notifier).notice = null;
 }

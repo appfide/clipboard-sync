@@ -57,6 +57,9 @@ Future<void> bootstrap(List<String> args) async {
             await app.read(syncControllerProvider.notifier).syncNow();
             await SystemNavigator.pop();
           },
+          onTogglePause: () => app
+              .read(settingsProvider.notifier)
+              .update((s) => s.copyWith(capturePaused: !s.capturePaused)),
         )
       : null;
 
@@ -72,7 +75,10 @@ Future<void> bootstrap(List<String> args) async {
     UncontrolledProviderScope(container: app, child: const ClipboardSyncApp()),
   );
 
-  await shell?.init(hotkeyEnabled: settings.hotkeyEnabled);
+  await shell?.init(
+    hotkeyEnabled: settings.hotkeyEnabled,
+    paused: settings.capturePaused,
+  );
   log.i('started on ${PlatformInfo.name} as ${settings.deviceName}');
   unawaited(_loadSecretsAndStart(app, settings));
 }

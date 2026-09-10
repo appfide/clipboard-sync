@@ -86,6 +86,13 @@ class OnboardingPage extends StatelessWidget {
                       label: const Text('Choose a database'),
                     ),
                     const SizedBox(height: 8),
+                    OutlinedButton.icon(
+                      key: const ValueKey('onboarding-join'),
+                      onPressed: () => context.go('/onboarding/join'),
+                      icon: const Icon(Icons.qr_code_scanner_rounded, size: 18),
+                      label: const Text('Already set up? Join with a code'),
+                    ),
+                    const SizedBox(height: 8),
                   ],
                 ),
               ),

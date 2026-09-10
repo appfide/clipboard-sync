@@ -138,7 +138,10 @@ class HistoryQuery extends Notifier<String> {
 final historyProvider = StreamProvider<List<HistoryEntry>>(
   (ref) => ref
       .watch(localStoreProvider)
-      .watchHistory(query: ref.watch(historyQueryProvider)),
+      .watchHistory(
+        query: ref.watch(historyQueryProvider),
+        ownDeviceId: ref.watch(settingsProvider.select((s) => s.deviceId)),
+      ),
 );
 
 /// Unsynced row count.

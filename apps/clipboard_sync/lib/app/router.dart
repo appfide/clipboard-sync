@@ -1,5 +1,8 @@
 import 'package:clipboard_sync/app/app_shell.dart';
 import 'package:clipboard_sync/features/about/about_page.dart';
+import 'package:clipboard_sync/features/devices/devices_page.dart';
+import 'package:clipboard_sync/features/devices/join_page.dart';
+import 'package:clipboard_sync/features/devices/pair_page.dart';
 import 'package:clipboard_sync/features/diagnostics/diagnostics_page.dart';
 import 'package:clipboard_sync/features/history/history_page.dart';
 import 'package:clipboard_sync/features/onboarding/onboarding_page.dart';
@@ -33,6 +36,10 @@ GoRouter buildAppRouter({required bool onboarded, String? initialLocation}) {
         path: '/onboarding/backend',
         builder: (_, _) => const BackendSetupPage(onboarding: true),
       ),
+      GoRoute(
+        path: '/onboarding/join',
+        builder: (_, _) => const JoinPage(onboarding: true),
+      ),
       ShellRoute(
         builder: (_, _, child) => AppShell(child: child),
         routes: [
@@ -51,6 +58,20 @@ GoRouter buildAppRouter({required bool onboarded, String? initialLocation}) {
               GoRoute(
                 path: 'diagnostics',
                 builder: (_, _) => const DiagnosticsPage(),
+              ),
+              GoRoute(
+                path: 'devices',
+                builder: (_, _) => const DevicesPage(),
+                routes: [
+                  GoRoute(
+                    path: 'pair',
+                    builder: (_, _) => const PairPage(),
+                  ),
+                  GoRoute(
+                    path: 'join',
+                    builder: (_, _) => const JoinPage(),
+                  ),
+                ],
               ),
             ],
           ),

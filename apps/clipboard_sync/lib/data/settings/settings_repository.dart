@@ -18,6 +18,7 @@ class SettingsRepository {
 
   static const _kDeviceId = 'device_id';
   static const _kPassphrase = 'e2e_passphrase';
+  static const _kRegisteredScope = 'registered_scope';
   static String _kSecret(String backendId, String key) =>
       'backend.$backendId.$key';
   static String _kPlain(String backendId, String key) =>
@@ -57,6 +58,9 @@ class SettingsRepository {
       launchHidden: _prefs.getBool('launch_hidden') ?? false,
       hotkeyEnabled: _prefs.getBool('hotkey_enabled') ?? true,
       themeMode: _prefs.getString('theme_mode') ?? 'system',
+      capturePaused: _prefs.getBool('capture_paused') ?? false,
+      skipSensitive: _prefs.getBool('skip_sensitive') ?? true,
+      skipSecretLike: _prefs.getBool('skip_secret_like') ?? false,
     );
   }
 
@@ -85,6 +89,7 @@ class SettingsRepository {
 
   /// Persists everything in [s].
   Future<void> save(AppSettings s) async {
+    await _prefs.setString(_kDeviceId, s.deviceId);
     await _prefs.setString('device_name', s.deviceName);
     await _prefs.setBool('onboarded', s.onboarded);
     await _prefs.setString('backend_id', s.backendId);
@@ -98,6 +103,9 @@ class SettingsRepository {
     await _prefs.setBool('launch_hidden', s.launchHidden);
     await _prefs.setBool('hotkey_enabled', s.hotkeyEnabled);
     await _prefs.setString('theme_mode', s.themeMode);
+    await _prefs.setBool('capture_paused', s.capturePaused);
+    await _prefs.setBool('skip_sensitive', s.skipSensitive);
+    await _prefs.setBool('skip_secret_like', s.skipSecretLike);
     await saveBackendValues(s.backendId, s.backendValues);
   }
 
@@ -121,6 +129,20 @@ class SettingsRepository {
       }
     }
   }
+
+  /// Removes every stored value (and secret) for [backendId].
+  Future<void> clearBackendValues(String backendId) =>
+      saveBackendValues(backendId, const {});
+
+  /// `AppSettings.backendScope` of the group this device is known to have
+  /// registered with, or `null`. Lets the engine tell "first run" apart from
+  /// "my row was deleted".
+  String? loadRegisteredScope() => _prefs.getString(_kRegisteredScope);
+
+  /// Stores or clears (`null`) the registered scope.
+  Future<void> saveRegisteredScope(String? scope) => scope == null
+      ? _prefs.remove(_kRegisteredScope)
+      : _prefs.setString(_kRegisteredScope, scope);
 
   /// E2E passphrase from the keychain.
   Future<String?> loadPassphrase() => _secure.read(_kPassphrase);

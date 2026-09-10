@@ -22,6 +22,9 @@ class AppSettings {
     this.launchHidden = false,
     this.hotkeyEnabled = true,
     this.themeMode = 'system',
+    this.capturePaused = false,
+    this.skipSensitive = true,
+    this.skipSecretLike = false,
   });
 
   /// Stable id for this installation.
@@ -69,12 +72,29 @@ class AppSettings {
   /// `system`, `light` or `dark`.
   final String themeMode;
 
+  /// Capture is paused: nothing new is recorded or synced until resumed.
+  final bool capturePaused;
+
+  /// Honour the OS "sensitive / transient" clipboard hints set by password
+  /// managers (macOS `ConcealedType`, Windows
+  /// `ExcludeClipboardContentFromMonitorProcessing`, Android 13+
+  /// `EXTRA_IS_SENSITIVE`) and never capture such content.
+  final bool skipSensitive;
+
+  /// Skip text that looks like a credential (API keys, tokens, private
+  /// keys, connection strings with passwords).
+  final bool skipSecretLike;
+
   /// Backend config derived from these settings.
   BackendConfig get backendConfig =>
       BackendConfig(backendId: backendId, values: backendValues);
 
   /// Key scope for the E2E cipher: ties the passphrase to backend + primary URL.
-  String get cipherKeyScope {
+  String get cipherKeyScope => backendScope;
+
+  /// Identifies one sync group: backend id + primary URL. Used for the
+  /// cipher key scope and to remember that this device registered there.
+  String get backendScope {
     final primary =
         backendValues['url'] ??
         backendValues['project_id'] ??
@@ -83,8 +103,12 @@ class AppSettings {
     return '$backendId|$primary';
   }
 
+  /// Whether a real (non local-only) backend is selected.
+  bool get syncsRemotely => backendId != 'memory';
+
   /// Copy with fields replaced.
   AppSettings copyWith({
+    String? deviceId,
     String? deviceName,
     bool? onboarded,
     String? backendId,
@@ -99,8 +123,11 @@ class AppSettings {
     bool? launchHidden,
     bool? hotkeyEnabled,
     String? themeMode,
+    bool? capturePaused,
+    bool? skipSensitive,
+    bool? skipSecretLike,
   }) => AppSettings(
-    deviceId: deviceId,
+    deviceId: deviceId ?? this.deviceId,
     deviceName: deviceName ?? this.deviceName,
     onboarded: onboarded ?? this.onboarded,
     backendId: backendId ?? this.backendId,
@@ -116,10 +143,14 @@ class AppSettings {
     launchHidden: launchHidden ?? this.launchHidden,
     hotkeyEnabled: hotkeyEnabled ?? this.hotkeyEnabled,
     themeMode: themeMode ?? this.themeMode,
+    capturePaused: capturePaused ?? this.capturePaused,
+    skipSensitive: skipSensitive ?? this.skipSensitive,
+    skipSecretLike: skipSecretLike ?? this.skipSecretLike,
   );
 
   /// Whether a backend/cipher rebuild is needed between [a] and [b].
   static bool syncAffecting(AppSettings a, AppSettings b) =>
+      a.deviceId != b.deviceId ||
       a.backendId != b.backendId ||
       !mapEquals(a.backendValues, b.backendValues) ||
       a.encryptionEnabled != b.encryptionEnabled ||

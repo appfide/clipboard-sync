@@ -131,9 +131,20 @@ class PocketBaseBackend implements SyncBackend {
     final missing = <String>[];
     try {
       await _ensureAuth();
-      for (final c in [_collection, _devicesCollection]) {
+      for (final (c, field) in [
+        (_collection, 'target_device_id'),
+        (_devicesCollection, 'status'),
+      ]) {
         try {
-          await _c.collection(c).getList(perPage: 1, skipTotal: true);
+          final page = await _c
+              .collection(c)
+              .getList(perPage: 1, skipTotal: true);
+          // Fields can only be inspected on an existing record; an empty
+          // collection is verified on first write instead.
+          if (page.items.isNotEmpty &&
+              !page.items.first.data.containsKey(field)) {
+            missing.add('field $c.$field');
+          }
         } on ClientException catch (e) {
           if (e.statusCode == 404) {
             missing.add('collection $c');
@@ -165,6 +176,8 @@ class PocketBaseBackend implements SyncBackend {
     if (_ownerId != null) 'owner': _ownerId,
   };
 
+  bool _itemSchemaChecked = false;
+
   @override
   Future<void> upsert(List<ClipItem> items) async {
     try {
@@ -172,10 +185,12 @@ class PocketBaseBackend implements SyncBackend {
       final col = _c.collection(_collection);
       for (final item in items) {
         final existing = await _findByClipId(item.id);
-        if (existing == null) {
-          await col.create(body: _body(item));
-        } else {
-          await col.update(existing.id, body: _body(item));
+        final rec = existing == null
+            ? await col.create(body: _body(item))
+            : await col.update(existing.id, body: _body(item));
+        if (!_itemSchemaChecked) {
+          _assertField(rec, 'target_device_id', _collection);
+          _itemSchemaChecked = true;
         }
       }
     } catch (e) {
@@ -268,8 +283,56 @@ class PocketBaseBackend implements SyncBackend {
     }
   }
 
+  Future<RecordModel?> _findDevice(String id) async {
+    try {
+      return await _c
+          .collection(_devicesCollection)
+          .getFirstListItem('device_id = "$id"');
+    } on ClientException catch (e) {
+      if (e.statusCode == 404) return null;
+      rethrow;
+    }
+  }
+
+  /// PocketBase silently drops fields the collection does not declare, which
+  /// would turn "block" into a no-op. Fail loudly instead.
+  static void _assertField(RecordModel r, String field, String collection) {
+    if (!r.data.containsKey(field)) {
+      throw BackendException(
+        'PocketBase collection "$collection" has no "$field" field — import the upgraded schema from ${descriptorStatic.docsPath}',
+        isAuth: true,
+      );
+    }
+  }
+
   @override
   Future<void> registerDevice(Device device) async {
+    try {
+      await _ensureAuth();
+      final col = _c.collection(_devicesCollection);
+      final existing = await _findDevice(device.id);
+      if (existing == null) {
+        await col.create(
+          body: <String, dynamic>{
+            ...device.toMap()..remove('id'),
+            'device_id': device.id,
+            if (_ownerId != null) 'owner': _ownerId,
+          },
+        );
+      } else {
+        // Presence only: never touch status / role / expires_at / paired_by.
+        await col.update(
+          existing.id,
+          body: <String, dynamic>{...device.presenceMap()..remove('id')},
+        );
+      }
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
+
+  @override
+  Future<void> updateDevice(Device device) async {
     try {
       await _ensureAuth();
       final col = _c.collection(_devicesCollection);
@@ -278,16 +341,23 @@ class PocketBaseBackend implements SyncBackend {
         'device_id': device.id,
         if (_ownerId != null) 'owner': _ownerId,
       };
-      RecordModel? existing;
-      try {
-        existing = await col.getFirstListItem('device_id = "${device.id}"');
-      } on ClientException catch (e) {
-        if (e.statusCode != 404) rethrow;
-      }
-      if (existing == null) {
-        await col.create(body: body);
-      } else {
-        await col.update(existing.id, body: body);
+      final existing = await _findDevice(device.id);
+      final rec = existing == null
+          ? await col.create(body: body)
+          : await col.update(existing.id, body: body);
+      _assertField(rec, 'status', _devicesCollection);
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
+
+  @override
+  Future<void> deleteDevice(String id) async {
+    try {
+      await _ensureAuth();
+      final existing = await _findDevice(id);
+      if (existing != null) {
+        await _c.collection(_devicesCollection).delete(existing.id);
       }
     } catch (e) {
       throw _wrap(e);
@@ -305,9 +375,17 @@ class PocketBaseBackend implements SyncBackend {
           .map(
             (r) => Device.fromMap(<String, Object?>{
               'id': r.getStringValue('device_id'),
-              'name': r.getStringValue('name'),
-              'platform': r.getStringValue('platform'),
-              'last_seen': r.getStringValue('last_seen'),
+              for (final k in const [
+                'name',
+                'platform',
+                'last_seen',
+                'status',
+                'role',
+                'expires_at',
+                'paired_by',
+                'app_version',
+              ])
+                k: _nullIfEmpty(r.get<Object?>(k)),
             }),
           )
           .toList();
@@ -362,6 +440,7 @@ class PocketBaseBackend implements SyncBackend {
         'created_at',
         'updated_at',
         'deleted_at',
+        'target_device_id',
       ])
         k: _nullIfEmpty(r.get<Object?>(k)),
       'id': r.getStringValue('clip_id'),

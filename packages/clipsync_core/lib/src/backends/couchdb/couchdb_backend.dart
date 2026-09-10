@@ -289,6 +289,30 @@ class CouchDbBackend implements SyncBackend {
   Future<void> registerDevice(Device device) async {
     try {
       final id = 'device:${device.id}';
+      final r = await _d.get<Map<String, dynamic>>(
+        '/$_db/$id',
+        options: Options(validateStatus: (s) => s == 200 || s == 404),
+      );
+      if (r.statusCode == 404) {
+        await _d.put<Map<String, dynamic>>(
+          '/$_db/$id',
+          data: {'_id': id, 'kind': 'device', ...device.toMap()},
+        );
+        return;
+      }
+      // Merge presence into the existing doc; membership fields untouched.
+      final doc = Map<String, Object?>.from(r.data!)
+        ..addAll(device.presenceMap());
+      await _d.put<Map<String, dynamic>>('/$_db/$id', data: doc);
+    } catch (e) {
+      throw toBackendException(e, context: 'CouchDB device');
+    }
+  }
+
+  @override
+  Future<void> updateDevice(Device device) async {
+    try {
+      final id = 'device:${device.id}';
       final revs = await _fetchRevs([id]);
       await _d.put<Map<String, dynamic>>(
         '/$_db/$id',
@@ -298,6 +322,23 @@ class CouchDbBackend implements SyncBackend {
           'kind': 'device',
           ...device.toMap(),
         },
+      );
+    } catch (e) {
+      throw toBackendException(e, context: 'CouchDB device');
+    }
+  }
+
+  @override
+  Future<void> deleteDevice(String id) async {
+    try {
+      final docId = 'device:$id';
+      final revs = await _fetchRevs([docId]);
+      final rev = revs[docId];
+      if (rev == null) return;
+      await _d.delete<Map<String, dynamic>>(
+        '/$_db/$docId',
+        queryParameters: {'rev': rev},
+        options: Options(validateStatus: (s) => s == 200 || s == 404),
       );
     } catch (e) {
       throw toBackendException(e, context: 'CouchDB device');

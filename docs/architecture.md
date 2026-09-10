@@ -5,14 +5,15 @@
 │ apps/clipboard_sync (Flutter)                               │
 │  platform/   clipboard capture · tray · hotkeys · autostart │
 │  data/local  drift (SQLite): items + outbox + cursor        │
-│  features/   history · settings (schema-driven) · onboarding│
+│  features/   history · settings · devices (pair / manage)  │
 └───────────────┬─────────────────────────────────────────────┘
                 │ LocalStore, SyncBackend, ClipCipher
 ┌───────────────▼─────────────────────────────────────────────┐
 │ packages/clipsync_core (pure Dart)                          │
-│  model/      ClipItem · Device · ClipContentType            │
-│  sync/       SyncEngine (push outbox → pull since cursor)   │
+│  model/      ClipItem · Device (status/role/expiry)         │
+│  sync/       SyncEngine (push · pull · membership check)    │
 │  crypto/     ClipCipher (Argon2id → AES-256-GCM, AAD = id)  │
+│  pairing/    PairingPayload · PairingCodec (PIN-sealed)     │
 │  backend/    SyncBackend · BackendDescriptor · ConfigField  │
 │  backends/   supabase · pocketbase · couchdb · firestore ·  │
 │              mongodb · memory                               │
@@ -38,6 +39,12 @@
    (Firestore, MongoDB) run step 3 on a timer.
 5. **Delete** — tombstone (`deleted_at`, content blanked). Rows are physically
    removed only by retention (`purgeBefore`).
+6. **Membership** — every minute (and before a sync older than that) the
+   engine lists `devices`, refreshes its own presence row, adopts its role,
+   ignores clips from blocked / expired devices and items addressed to
+   another device (`target_device_id`). If its own row says blocked, removed
+   or expired, it stops with `SyncPhase.revoked` and the app wipes the
+   credentials. Details and limits: [devices.md](devices.md).
 
 ## Adding a backend
 
@@ -47,6 +54,17 @@ rendered from `configSchema`), register in `BackendRegistry.builtIn()`, run
 patterns to `.gitleaks.toml`.
 
 ## Security model
+
+- Pairing codes carry the database settings encrypted under an 8-digit PIN
+  (Argon2id 64 MiB → AES-256-GCM), valid for 5 minutes, never recorded in
+  history. Access decisions (role, expiry) are written by the host before the
+  code is shown.
+- Device access control is cooperative — enforced by the app, not by the
+  database — because every device holds the same credentials. See
+  [devices.md](devices.md#enforcement-model--read-this).
+- Capture filters: OS "concealed" clipboard hints (password managers) are
+  checked *before* reading; credential-looking text can be skipped; capture
+  can be paused.
 
 - Credentials live only in the OS credential store (`flutter_secure_storage`).
 - Every log line passes through `redactSecrets`.

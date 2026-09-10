@@ -36,4 +36,33 @@ void main() {
     const s = 'pushed 3 item(s) to https://example.com/api';
     expect(redactSecrets(s), s);
   });
+
+  group('heuristics', _secretHeuristics);
+}
+
+void _secretHeuristics() {
+  test('looksLikeSecret flags credentials, not prose', () {
+    const prose =
+        'Meet at 10:30 tomorrow, bring the slides and a password for the wifi is on the board.';
+    expect(looksLikeSecret(prose), isFalse);
+    expect(looksLikeSecret('https://example.com/path?q=1'), isFalse);
+    expect(looksLikeSecret('sk-abc'), isFalse, reason: 'too short');
+    expect(looksLikeSecret(['AKIA', 'ABCDEFGHIJKLMNOP'].join()), isTrue);
+    expect(looksLikeSecret('ghp_${'a' * 36}'), isTrue);
+    expect(looksLikeSecret('xoxb-1234567890-abcdef'), isTrue);
+    expect(looksLikeSecret('sk-${'z' * 24}'), isTrue);
+    expect(looksLikeSecret('AIza${'A' * 35}'), isTrue);
+    expect(
+      looksLikeSecret('mongodb+srv://u:p@cluster0.example.com/db'),
+      isTrue,
+    );
+    expect(looksLikeSecret('password: hunter22'), isTrue);
+    expect(
+      looksLikeSecret(
+        ['-----BEGIN ', 'RSA PRIVATE ', 'KEY-----\nMIIE...\n-----END'].join(),
+      ),
+      isTrue,
+    );
+    expect(looksLikeSecret(_jwt), isTrue);
+  });
 }

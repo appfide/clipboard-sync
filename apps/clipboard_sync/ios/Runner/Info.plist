@@ -66,6 +66,8 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Clipboard Sync uses the camera only to scan a pairing QR code shown by one of your other devices.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Clipboard Sync connects to a self-hosted database on your local network when you configure one.</string>
 </dict>

@@ -101,10 +101,127 @@ void runBackendContractTests(
           name: 'Z2',
           platform: 'test',
           lastSeen: DateTime.now().toUtc(),
+          appVersion: '0.2.0',
         ),
       );
       final devices = await b.listDevices();
-      expect(devices.where((x) => x.id == 'dev-z').single.name, 'Z2');
+      final z = devices.where((x) => x.id == 'dev-z').single;
+      expect(z.name, 'Z2');
+      expect(z.appVersion, '0.2.0');
+      expect(z.status, DeviceStatus.active);
+      expect(z.role, DeviceRole.full);
+    });
+
+    test('updateDevice writes membership; heartbeat keeps it', () async {
+      final id = 'dev-${const Uuid().v4()}';
+      final t0 = DateTime.now().toUtc();
+      final until = DateTime.utc(2030, 1, 2, 3, 4, 5);
+      await b.registerDevice(
+        Device(id: id, name: 'M', platform: 'test', lastSeen: t0),
+      );
+      await b.updateDevice(
+        Device(
+          id: id,
+          name: 'M',
+          platform: 'test',
+          lastSeen: t0,
+          status: DeviceStatus.blocked,
+          role: DeviceRole.sendOnly,
+          expiresAt: until,
+          pairedBy: 'dev-a',
+        ),
+      );
+      var m = (await b.listDevices()).firstWhere((x) => x.id == id);
+      expect(m.status, DeviceStatus.blocked);
+      expect(m.role, DeviceRole.sendOnly);
+      expect(m.expiresAt, until);
+      expect(m.pairedBy, 'dev-a');
+
+      // A later heartbeat refreshes presence only.
+      final t1 = t0.add(const Duration(minutes: 1));
+      await b.registerDevice(
+        Device(
+          id: id,
+          name: 'M renamed',
+          platform: 'test',
+          lastSeen: t1,
+          appVersion: '9.9.9',
+        ),
+      );
+      m = (await b.listDevices()).firstWhere((x) => x.id == id);
+      expect(m.name, 'M renamed');
+      expect(m.appVersion, '9.9.9');
+      expect(m.status, DeviceStatus.blocked);
+      expect(m.role, DeviceRole.sendOnly);
+      expect(m.expiresAt, until);
+      expect(m.pairedBy, 'dev-a');
+
+      // Clearing the expiry and re-activating.
+      await b.updateDevice(
+        m.copyWith(status: DeviceStatus.active, clearExpiresAt: true),
+      );
+      m = (await b.listDevices()).firstWhere((x) => x.id == id);
+      expect(m.status, DeviceStatus.active);
+      expect(m.expiresAt, isNull);
+    });
+
+    test('updateDevice can pre-create a pending row', () async {
+      final id = 'dev-${const Uuid().v4()}';
+      await b.updateDevice(
+        Device(
+          id: id,
+          name: 'Pending device',
+          platform: '',
+          lastSeen: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+          role: DeviceRole.receiveOnly,
+          pairedBy: 'dev-a',
+        ),
+      );
+      final m = (await b.listDevices()).firstWhere((x) => x.id == id);
+      expect(m.isPending, isTrue);
+      expect(m.role, DeviceRole.receiveOnly);
+    });
+
+    test('deleteDevice removes the row and is idempotent', () async {
+      final id = 'dev-${const Uuid().v4()}';
+      await b.registerDevice(
+        Device(
+          id: id,
+          name: 'D',
+          platform: 'test',
+          lastSeen: DateTime.now().toUtc(),
+        ),
+      );
+      await b.deleteDevice(id);
+      await b.deleteDevice(id);
+      expect((await b.listDevices()).map((x) => x.id), isNot(contains(id)));
+    });
+
+    test('target_device_id survives the round-trip', () async {
+      final i = ClipItem.create(
+        id: const Uuid().v4(),
+        deviceId: 'dev-b',
+        deviceName: 'B',
+        type: ClipContentType.text,
+        content: 'to a',
+        contentHash: sha256Hex('to a'),
+        sizeBytes: 4,
+        now: DateTime.now().toUtc(),
+        targetDeviceId: 'dev-a',
+      );
+      await b.upsert([i]);
+      final got = (await b.pullSince(
+        null,
+        excludeDeviceId: 'dev-x',
+      )).firstWhere((x) => x.id == i.id);
+      expect(got.targetDeviceId, 'dev-a');
+      final plain = textItem('broadcast', deviceId: 'dev-b');
+      await b.upsert([plain]);
+      final got2 = (await b.pullSince(
+        null,
+        excludeDeviceId: 'dev-x',
+      )).firstWhere((x) => x.id == plain.id);
+      expect(got2.targetDeviceId, isNull);
     });
 
     test('purgeBefore removes old rows', () async {

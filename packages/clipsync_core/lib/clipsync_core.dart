@@ -20,6 +20,7 @@ export 'src/crypto/clip_cipher.dart';
 export 'src/model/clip_content_type.dart';
 export 'src/model/clip_item.dart';
 export 'src/model/device.dart';
+export 'src/pairing/pairing_payload.dart';
 export 'src/sync/local_store.dart';
 export 'src/sync/sync_engine.dart';
 export 'src/sync/sync_status.dart';

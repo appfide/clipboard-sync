@@ -328,10 +328,43 @@ class FirestoreBackend implements SyncBackend {
   Future<void> registerDevice(Device device) async {
     try {
       final o = await _opts();
+      final presence = device.presenceMap()..remove('id');
+      // An update mask limits the write to presence fields; the document is
+      // created when missing, membership fields keep their values otherwise.
+      await _dio!.patch<Map<String, dynamic>>(
+        '$_docsBase/$_devicesCollection/${device.id}',
+        queryParameters: {'updateMask.fieldPaths': presence.keys.toList()},
+        data: {
+          'fields': _encode({...presence, 'id': device.id}),
+        },
+        options: o,
+      );
+    } catch (e) {
+      throw toBackendException(e, context: 'Firestore device');
+    }
+  }
+
+  @override
+  Future<void> updateDevice(Device device) async {
+    try {
+      final o = await _opts();
       await _dio!.patch<Map<String, dynamic>>(
         '$_docsBase/$_devicesCollection/${device.id}',
         data: {'fields': _encode(device.toMap())},
         options: o,
+      );
+    } catch (e) {
+      throw toBackendException(e, context: 'Firestore device');
+    }
+  }
+
+  @override
+  Future<void> deleteDevice(String id) async {
+    try {
+      final o = await _opts();
+      await _dio!.delete<Map<String, dynamic>>(
+        '$_docsBase/$_devicesCollection/$id',
+        options: o.copyWith(validateStatus: (s) => s == 200 || s == 404),
       );
     } catch (e) {
       throw toBackendException(e, context: 'Firestore device');
@@ -428,6 +461,7 @@ class FirestoreBackend implements SyncBackend {
     'updated_at',
     'deleted_at',
     'last_seen',
+    'expires_at',
   };
 
   static Map<String, Object?> _encode(Map<String, Object?> m) => {

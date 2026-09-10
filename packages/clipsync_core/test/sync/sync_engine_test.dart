@@ -198,4 +198,260 @@ void main() {
       containsAllInOrder([SyncPhase.idle, SyncPhase.syncing, SyncPhase.idle]),
     );
   });
+
+  group('membership', _membershipTests);
+}
+
+// ---------------------------------------------------------------------------
+// Device management
+// ---------------------------------------------------------------------------
+
+void _membershipTests() {
+  late MemoryStore shared;
+  late MemoryBackend backend;
+  late FakeLocalStore store;
+  final revoked = <String>[];
+
+  SyncEngine engine({bool assumeRegistered = false}) {
+    final e = SyncEngine(
+      backend: backend,
+      store: store,
+      device: deviceA,
+      pollInterval: const Duration(hours: 1),
+      heartbeatInterval: const Duration(hours: 1),
+      assumeRegistered: assumeRegistered,
+    );
+    e.statusStream.listen((s) {
+      if (s.phase == SyncPhase.revoked) revoked.add(s.revokedReason!);
+    });
+    return e;
+  }
+
+  setUp(() async {
+    revoked.clear();
+    shared = MemoryStore();
+    backend = MemoryBackend(shared: shared);
+    await backend.connect(const BackendConfig.empty('memory'));
+    store = FakeLocalStore();
+  });
+
+  tearDown(() => backend.dispose());
+
+  test('first run registers the device with default membership', () async {
+    final e = engine();
+    await e.start();
+    final me = shared.devices['dev-a']!;
+    expect(me.status, DeviceStatus.active);
+    expect(me.role, DeviceRole.full);
+    expect(e.knownDevices.map((d) => d.id), contains('dev-a'));
+    expect(e.status.phase, SyncPhase.idle);
+    await e.dispose();
+  });
+
+  test('a blocked device stops itself with reason "blocked"', () async {
+    shared.devices['dev-a'] = deviceA.copyWith(status: DeviceStatus.blocked);
+    final e = engine();
+    await e.start();
+    expect(e.status.phase, SyncPhase.revoked);
+    expect(revoked, ['blocked']);
+    expect(e.isRunning, isFalse);
+    // The heartbeat did not resurrect or alter the row.
+    expect(shared.devices['dev-a']!.status, DeviceStatus.blocked);
+    await e.dispose();
+  });
+
+  test('a removed row with assumeRegistered means revoked', () async {
+    final e = engine(assumeRegistered: true);
+    await e.start();
+    expect(e.status.phase, SyncPhase.revoked);
+    expect(revoked, ['removed']);
+    expect(shared.devices.containsKey('dev-a'), isFalse);
+    await e.dispose();
+  });
+
+  test('an expired membership means revoked', () async {
+    shared.devices['dev-a'] = deviceA.copyWith(
+      expiresAt: DateTime.now().toUtc().subtract(const Duration(minutes: 1)),
+    );
+    final e = engine();
+    await e.start();
+    expect(revoked, ['expired']);
+    await e.dispose();
+  });
+
+  test('status removed set later is noticed on the next heartbeat', () async {
+    final e = engine();
+    await e.start();
+    expect(e.status.phase, SyncPhase.idle);
+    shared.devices['dev-a'] = shared.devices['dev-a']!.copyWith(
+      status: DeviceStatus.removed,
+    );
+    await e.refreshDevices();
+    expect(e.status.phase, SyncPhase.revoked);
+    expect(revoked, ['removed']);
+    await e.dispose();
+  });
+
+  test('heartbeat keeps membership fields set by another device', () async {
+    final e = engine();
+    await e.start();
+    // Manager changes our role and expiry directly in the backend.
+    final until = DateTime.now().toUtc().add(const Duration(days: 1));
+    await backend.updateDevice(
+      shared.devices['dev-a']!.copyWith(
+        role: DeviceRole.sendOnly,
+        expiresAt: until,
+        pairedBy: 'dev-b',
+      ),
+    );
+    await e.refreshDevices();
+    final me = shared.devices['dev-a']!;
+    expect(me.role, DeviceRole.sendOnly);
+    expect(me.expiresAt, until);
+    expect(me.pairedBy, 'dev-b');
+    expect(e.role, DeviceRole.sendOnly);
+    expect(e.status.role, DeviceRole.sendOnly);
+    await e.dispose();
+  });
+
+  test('clips from blocked devices are skipped on pull', () async {
+    shared.devices['dev-b'] = deviceB.copyWith(status: DeviceStatus.blocked);
+    shared.devices['dev-c'] = Device(
+      id: 'dev-c',
+      name: 'C',
+      platform: 'test',
+      lastSeen: DateTime.now().toUtc(),
+    );
+    backend
+      ..injectRemote(textItem('from blocked', deviceId: 'dev-b'))
+      ..injectRemote(textItem('from c', deviceId: 'dev-c'));
+    final e = engine();
+    await e.start();
+    expect(store.items.values.map((i) => i.content), ['from c']);
+    await e.dispose();
+  });
+
+  test('targeted clips reach only the addressed device', () async {
+    final forMe = ClipItem.create(
+      id: 'for-a',
+      deviceId: 'dev-b',
+      deviceName: 'B',
+      type: ClipContentType.text,
+      content: 'for a',
+      contentHash: sha256Hex('for a'),
+      sizeBytes: 5,
+      now: DateTime.now().toUtc(),
+      targetDeviceId: 'dev-a',
+    );
+    final forOther = ClipItem.create(
+      id: 'for-c',
+      deviceId: 'dev-b',
+      deviceName: 'B',
+      type: ClipContentType.text,
+      content: 'for c',
+      contentHash: sha256Hex('for c'),
+      sizeBytes: 5,
+      now: DateTime.now().toUtc(),
+      targetDeviceId: 'dev-c',
+    );
+    backend
+      ..injectRemote(forMe)
+      ..injectRemote(forOther);
+    final e = engine();
+    await e.start();
+    expect(store.items.keys, ['for-a']);
+    // Cursor still advanced past the skipped item.
+    expect(store.cursor, isNotNull);
+    await e.dispose();
+  });
+
+  test('send-only role pushes but never pulls', () async {
+    shared.devices['dev-a'] = deviceA.copyWith(role: DeviceRole.sendOnly);
+    backend.injectRemote(textItem('remote', deviceId: 'dev-b'));
+    store.capture(textItem('mine'));
+    final e = engine();
+    await e.start();
+    expect(store.unsynced, isEmpty, reason: 'push happened');
+    expect(store.items.length, 1, reason: 'nothing pulled');
+    expect(e.role, DeviceRole.sendOnly);
+    await e.dispose();
+  });
+
+  test('receive-only role pulls but never pushes', () async {
+    shared.devices['dev-a'] = deviceA.copyWith(role: DeviceRole.receiveOnly);
+    backend.injectRemote(textItem('remote', deviceId: 'dev-b'));
+    final mine = textItem('mine');
+    store.capture(mine);
+    final e = engine();
+    await e.start();
+    expect(store.unsynced, {mine.id}, reason: 'outbox untouched');
+    expect(shared.items.containsKey(mine.id), isFalse);
+    expect(store.items.length, 2, reason: 'remote applied');
+    await e.dispose();
+  });
+
+  test('management helpers write through and refresh the list', () async {
+    shared.devices['dev-b'] = deviceB;
+    final e = engine();
+    await e.start();
+    final snapshots = <List<Device>>[];
+    e.devices.listen(snapshots.add);
+
+    await e.blockDevice('dev-b');
+    expect(shared.devices['dev-b']!.status, DeviceStatus.blocked);
+    await e.unblockDevice('dev-b');
+    expect(shared.devices['dev-b']!.status, DeviceStatus.active);
+    await e.setDeviceRole('dev-b', DeviceRole.receiveOnly);
+    expect(shared.devices['dev-b']!.role, DeviceRole.receiveOnly);
+    final until = DateTime.now().toUtc().add(const Duration(hours: 2));
+    await e.setDeviceExpiry('dev-b', until);
+    expect(shared.devices['dev-b']!.expiresAt, until);
+    await e.setDeviceExpiry('dev-b', null);
+    expect(shared.devices['dev-b']!.expiresAt, isNull);
+    await e.removeDevice('dev-b');
+    expect(shared.devices['dev-b']!.status, DeviceStatus.removed);
+    await e.forgetDevice('dev-b');
+    expect(shared.devices.containsKey('dev-b'), isFalse);
+    await e.inviteDevice(id: 'dev-new', role: DeviceRole.sendOnly);
+    final invited = shared.devices['dev-new']!;
+    expect(invited.isPending, isTrue);
+    expect(invited.role, DeviceRole.sendOnly);
+    expect(invited.pairedBy, 'dev-a');
+    expect(snapshots, isNotEmpty);
+    expect(e.knownDevices.map((d) => d.id), containsAll(['dev-a', 'dev-new']));
+    expect(() => e.blockDevice('nope'), throwsA(isA<BackendException>()));
+    await e.dispose();
+  });
+
+  test('a joining device adopts the invited row and its role', () async {
+    // Host pre-created the row; the joiner (dev-a) heartbeats into it.
+    shared.devices['dev-a'] = Device(
+      id: 'dev-a',
+      name: 'Pending device',
+      platform: '',
+      lastSeen: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+      role: DeviceRole.receiveOnly,
+      pairedBy: 'dev-host',
+    );
+    final e = engine();
+    await e.start();
+    final me = shared.devices['dev-a']!;
+    expect(me.name, 'A');
+    expect(me.platform, 'test');
+    expect(me.isPending, isFalse);
+    expect(me.role, DeviceRole.receiveOnly);
+    expect(me.pairedBy, 'dev-host');
+    expect(e.role, DeviceRole.receiveOnly);
+    await e.dispose();
+  });
+
+  test('device list failure does not stop syncing', () async {
+    final e = engine();
+    await e.start();
+    backend.failWith = BackendException('boom', isTransient: true);
+    await e.refreshDevices();
+    expect(e.status.phase, isNot(SyncPhase.revoked));
+    backend.failWith = null;
+    await e.dispose();
+  });
 }

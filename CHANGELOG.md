@@ -6,6 +6,17 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+- **Device pairing**: Settings → Devices → *Add a device* shows a QR code (or a copyable code) plus an 8-digit PIN; the other device scans or pastes it under *Join another group* (also offered on the welcome screen). The code carries the database settings encrypted with the PIN (Argon2id → AES-256-GCM), is valid for 5 minutes and is never recorded in clipboard history. The host chooses the new device's role and access duration and can include the E2E passphrase (off by default).
+- **Device management**: list every device with presence, block / unblock, remove, forget, change role (*Send & receive*, *Send only*, *Receive only*) and set temporary access. A blocked, removed or expired device stops itself, deletes its credentials and passphrase, and tells the user. Enforcement is cooperative — see `docs/devices.md`.
+- **Send to…** in the history menu pushes a clip to one device only (`target_device_id`).
+- **Capture filters**: *Pause capture* (also in the tray menu), *Skip password-manager content* (macOS concealed/transient pasteboard types, Windows `ExcludeClipboardContentFromMonitorProcessing`, Android 13+ `EXTRA_IS_SENSITIVE`; on by default) and *Skip keys and tokens* (credential-pattern heuristic).
+- Device rows carry `status`, `role`, `expires_at`, `paired_by`, `app_version`; clips carry `target_device_id`. Supabase and PocketBase need the upgrade snippet in their guide; other backends need nothing.
+
+### Changed
+- Heartbeats write only presence fields, so a block set by another device is never overwritten.
+- Local database schema v2 (adds `target_device_id`); migrates automatically.
+
 ## [0.1.0] - 2026-09-09
 
 ### Added

@@ -27,6 +27,7 @@ Admin UI → Settings → Import collections → paste:
       { "name": "created_at",   "type": "date",   "required": true },
       { "name": "updated_at",   "type": "date",   "required": true },
       { "name": "deleted_at",   "type": "date" },
+      { "name": "target_device_id", "type": "text" },
       { "name": "owner",        "type": "relation", "collectionId": "_pb_users_auth_", "maxSelect": 1 }
     ],
     "indexes": [
@@ -47,6 +48,11 @@ Admin UI → Settings → Import collections → paste:
       { "name": "name",      "type": "text" },
       { "name": "platform",  "type": "text" },
       { "name": "last_seen", "type": "date", "required": true },
+      { "name": "app_version", "type": "text" },
+      { "name": "status",    "type": "text" },
+      { "name": "role",      "type": "text" },
+      { "name": "expires_at","type": "date" },
+      { "name": "paired_by", "type": "text" },
       { "name": "owner",     "type": "relation", "collectionId": "_pb_users_auth_", "maxSelect": 1 }
     ],
     "indexes": [ "CREATE UNIQUE INDEX idx_devices_device_id ON devices (device_id)" ],
@@ -62,6 +68,14 @@ Admin UI → Settings → Import collections → paste:
 The app sets `owner` to the signed-in user automatically when the `owner`
 field exists. Set every rule to `""` (empty = public) only for a private LAN
 instance, and enable E2E encryption regardless.
+
+### Upgrading from 0.1.0
+
+Add the fields marked above to the existing collections (Collections → edit
+→ New field): `target_device_id` (text) on `clip_items`; `app_version`,
+`status`, `role`, `paired_by` (text) and `expires_at` (date) on `devices`.
+PocketBase silently drops unknown fields, so the app checks for them and
+refuses to sync until they exist.
 
 ## 2. Create a user
 

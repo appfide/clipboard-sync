@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:clipboard_sync/core/platform_info.dart';
 import 'package:clipboard_sync/features/settings/permissions_section.dart';
+import 'package:clipboard_sync/features/sync/sync_controller.dart';
 import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
 import 'package:clipboard_sync/ui/widgets/section_card.dart';
@@ -23,6 +24,8 @@ class SettingsPage extends ConsumerWidget {
         .watch(backendRegistryProvider)
         .descriptor(s.backendId);
     final shell = ref.watch(desktopShellProvider);
+    final status = ref.watch(syncControllerProvider);
+    final devices = ref.watch(deviceListProvider).value ?? const [];
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -112,6 +115,36 @@ class SettingsPage extends ConsumerWidget {
                 title: 'Capture',
                 children: [
                   SwitchRow(
+                    icon: s.capturePaused
+                        ? Icons.pause_circle_filled_rounded
+                        : Icons.pause_circle_outline_rounded,
+                    title: 'Pause capture',
+                    subtitle: s.capturePaused
+                        ? 'Paused — nothing is recorded or synced'
+                        : 'Temporarily stop recording the clipboard',
+                    value: s.capturePaused,
+                    onChanged: (v) =>
+                        notifier.update((x) => x.copyWith(capturePaused: v)),
+                  ),
+                  SwitchRow(
+                    icon: Icons.password_rounded,
+                    title: 'Skip password-manager content',
+                    subtitle:
+                        'Honour the “concealed” hint set by password managers (macOS, Windows, Android 13+)',
+                    value: s.skipSensitive,
+                    onChanged: (v) =>
+                        notifier.update((x) => x.copyWith(skipSensitive: v)),
+                  ),
+                  SwitchRow(
+                    icon: Icons.key_off_rounded,
+                    title: 'Skip keys and tokens',
+                    subtitle:
+                        'Never record text that looks like an API key, token, private key or connection string',
+                    value: s.skipSecretLike,
+                    onChanged: (v) =>
+                        notifier.update((x) => x.copyWith(skipSecretLike: v)),
+                  ),
+                  SwitchRow(
                     icon: Icons.image_outlined,
                     title: 'Capture images',
                     subtitle: 'Up to ${s.maxInlineKb} KB per image',
@@ -166,12 +199,13 @@ class SettingsPage extends ConsumerWidget {
                   ],
                 ),
               SectionCard(
-                title: 'This device',
+                title: 'Devices',
                 children: [
                   SettingRow(
                     icon: Icons.devices_rounded,
-                    title: 'Device name',
-                    subtitle: s.deviceName,
+                    title: 'This device',
+                    subtitle:
+                        '${s.deviceName}${status.role != DeviceRole.full ? ' · ${status.role.label}' : ''} · tap to rename',
                     onTap: () async {
                       final name = await promptText(
                         context,
@@ -185,6 +219,39 @@ class SettingsPage extends ConsumerWidget {
                       }
                     },
                   ),
+                  SettingRow(
+                    key: const ValueKey('manage-devices'),
+                    icon: Icons.hub_rounded,
+                    title: 'Manage devices',
+                    subtitle: s.syncsRemotely
+                        ? '${devices.length} in this group · block, remove, roles, expiry'
+                        : 'Local only — no sync group',
+                    onTap: () => context.push('/settings/devices'),
+                  ),
+                  SettingRow(
+                    key: const ValueKey('add-device'),
+                    icon: Icons.qr_code_2_rounded,
+                    title: 'Add a device',
+                    subtitle: s.syncsRemotely
+                        ? 'Show a QR code or copy a pairing code'
+                        : 'Connect a database first',
+                    onTap: s.syncsRemotely
+                        ? () => context.push('/settings/devices/pair')
+                        : null,
+                  ),
+                  SettingRow(
+                    key: const ValueKey('join-group'),
+                    icon: Icons.qr_code_scanner_rounded,
+                    title: 'Join another group',
+                    subtitle:
+                        'Scan or paste a pairing code from another device',
+                    onTap: () => context.push('/settings/devices/join'),
+                  ),
+                ],
+              ),
+              SectionCard(
+                title: 'Support',
+                children: [
                   SettingRow(
                     icon: Icons.bug_report_outlined,
                     title: 'Diagnostics',

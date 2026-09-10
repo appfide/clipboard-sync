@@ -102,7 +102,22 @@ class MemoryBackend implements SyncBackend {
   @override
   Future<void> registerDevice(Device device) async {
     _check();
+    final existing = _store.devices[device.id];
+    _store.devices[device.id] = existing == null
+        ? device
+        : existing.withPresence(device);
+  }
+
+  @override
+  Future<void> updateDevice(Device device) async {
+    _check();
     _store.devices[device.id] = device;
+  }
+
+  @override
+  Future<void> deleteDevice(String id) async {
+    _check();
+    _store.devices.remove(id);
   }
 
   @override

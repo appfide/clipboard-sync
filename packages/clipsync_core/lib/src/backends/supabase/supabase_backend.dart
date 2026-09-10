@@ -135,10 +135,24 @@ class SupabaseBackend implements SyncBackend {
     }
   }
 
+  /// Columns added after 0.1.0; checked so an old schema fails loudly
+  /// instead of silently dropping device management data.
+  static const _itemColumns = ['target_device_id'];
+  static const _deviceColumns = [
+    'status',
+    'role',
+    'expires_at',
+    'paired_by',
+    'app_version',
+  ];
+
   @override
   Future<SchemaCheck> verifySchema() async {
     final missing = <String>[];
-    for (final t in [_table, _devicesTable]) {
+    for (final (t, cols) in [
+      (_table, _itemColumns),
+      (_devicesTable, _deviceColumns),
+    ]) {
       try {
         await _ensureAuth();
         await _c.from(t).select('id').limit(1);
@@ -146,8 +160,20 @@ class SupabaseBackend implements SyncBackend {
         // 42P01 = undefined_table; PGRST205 = table not in schema cache.
         if (e.code == '42P01' || e.code == 'PGRST205' || e.code == '404') {
           missing.add('table $t');
-        } else {
-          throw _wrap(e);
+          continue;
+        }
+        throw _wrap(e);
+      }
+      for (final col in cols) {
+        try {
+          await _c.from(t).select(col).limit(1);
+        } on PostgrestException catch (e) {
+          // 42703 = undefined_column.
+          if (e.code == '42703' || e.code == 'PGRST204') {
+            missing.add('column $t.$col');
+          } else {
+            throw _wrap(e);
+          }
         }
       }
     }
@@ -156,7 +182,9 @@ class SupabaseBackend implements SyncBackend {
         : SchemaCheck(
             ok: false,
             missing: missing,
-            hint: 'Run the SQL in ${descriptorStatic.docsPath}',
+            hint: missing.any((m) => m.startsWith('column'))
+                ? 'Run the upgrade SQL in ${descriptorStatic.docsPath}'
+                : 'Run the SQL in ${descriptorStatic.docsPath}',
           );
   }
 
@@ -245,7 +273,32 @@ class SupabaseBackend implements SyncBackend {
   Future<void> registerDevice(Device device) async {
     try {
       await _ensureAuth();
+      // PostgREST merges only the columns present in the body, so membership
+      // columns keep whatever the managing device wrote (or their defaults
+      // on insert).
+      await _c
+          .from(_devicesTable)
+          .upsert(device.presenceMap(), onConflict: 'id');
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
+
+  @override
+  Future<void> updateDevice(Device device) async {
+    try {
+      await _ensureAuth();
       await _c.from(_devicesTable).upsert(device.toMap(), onConflict: 'id');
+    } catch (e) {
+      throw _wrap(e);
+    }
+  }
+
+  @override
+  Future<void> deleteDevice(String id) async {
+    try {
+      await _ensureAuth();
+      await _c.from(_devicesTable).delete().eq('id', id);
     } catch (e) {
       throw _wrap(e);
     }
