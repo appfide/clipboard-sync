@@ -381,11 +381,13 @@ class SyncEngine {
     _requireAdminIfSigned();
     if (adminKey == null) throw StateError('Only the admin can rotate keys');
     final version = (_ring?.currentVersion ?? 0) + 1;
-    final now = clock.now().toUtc();
     var issued = 0;
-    for (final d in await _backend.listDevices()) {
-      if (!d.canSync(now) || d.boxPub == null) continue;
-      if (isSignedGroup && !await _verified(d)) continue;
+    // Refresh first and issue only to the trusted set: it already excludes
+    // blocked / expired / unverified rows *and* rolled-back rows that still
+    // carry an older valid signature.
+    await _membership();
+    for (final d in _trusted.values) {
+      if (d.boxPub == null) continue;
       final env = await KeyEnvelope.seal(
         passphrase: newPassphrase,
         version: version,

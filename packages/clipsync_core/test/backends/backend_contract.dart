@@ -12,6 +12,8 @@ void runBackendContractTests(
   String name,
   Future<SyncBackend> Function() create, {
   bool realtime = false,
+  Duration realtimeWarmup = const Duration(milliseconds: 300),
+  Duration realtimeSettle = const Duration(seconds: 2),
 }) {
   group('$name contract', () {
     late SyncBackend b;
@@ -237,10 +239,10 @@ void runBackendContractTests(
       test('watch emits items written by other devices', () async {
         final events = <ClipItem>[];
         final sub = b.watch(excludeDeviceId: 'dev-a').listen(events.add);
-        await Future<void>.delayed(const Duration(milliseconds: 300));
+        await Future<void>.delayed(realtimeWarmup);
         final i = textItem('rt', deviceId: 'dev-b');
         await b.upsert([i]);
-        await Future<void>.delayed(const Duration(seconds: 2));
+        await Future<void>.delayed(realtimeSettle);
         await sub.cancel();
         expect(events.map((e) => e.id), contains(i.id));
       });
