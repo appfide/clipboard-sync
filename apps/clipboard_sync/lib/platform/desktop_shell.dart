@@ -17,10 +17,14 @@ class DesktopShell with TrayListener, WindowListener {
     required this.onSyncNow,
     required this.onOpenSettings,
     required this.onQuit,
+    required this.onTogglePause,
   });
 
   /// Tray "Sync now".
   final Future<void> Function() onSyncNow;
+
+  /// Tray "Pause capture" / "Resume capture".
+  final Future<void> Function() onTogglePause;
 
   /// Tray "Settings…".
   final void Function() onOpenSettings;
@@ -30,10 +34,13 @@ class DesktopShell with TrayListener, WindowListener {
 
   static const _menuShow = 'show';
   static const _menuSync = 'sync';
+  static const _menuPause = 'pause';
   static const _menuSettings = 'settings';
   static const _menuQuit = 'quit';
 
   bool _initialised = false;
+  bool _paused = false;
+  bool _trayReady = false;
   HotKey? _hotKey;
 
   /// Prepares the window before the first frame. Call in `main()` before
@@ -58,9 +65,10 @@ class DesktopShell with TrayListener, WindowListener {
   }
 
   /// Sets up tray, close-to-tray and hotkey.
-  Future<void> init({required bool hotkeyEnabled}) async {
+  Future<void> init({required bool hotkeyEnabled, bool paused = false}) async {
     if (!PlatformInfo.isDesktop || _initialised) return;
     _initialised = true;
+    _paused = paused;
     await windowManager.setPreventClose(true);
     windowManager.addListener(this);
 
@@ -70,23 +78,43 @@ class DesktopShell with TrayListener, WindowListener {
         isTemplate: Platform.isMacOS,
       );
       await trayManager.setToolTip('Clipboard Sync');
-      await trayManager.setContextMenu(
-        Menu(
-          items: [
-            MenuItem(key: _menuShow, label: 'Open Clipboard Sync'),
-            MenuItem(key: _menuSync, label: 'Sync now'),
-            MenuItem(key: _menuSettings, label: 'Settings…'),
-            MenuItem.separator(),
-            MenuItem(key: _menuQuit, label: 'Quit'),
-          ],
-        ),
-      );
+      await trayManager.setContextMenu(_menu());
       trayManager.addListener(this);
+      _trayReady = true;
     } catch (e) {
       log.w('tray unavailable', error: e);
     }
 
     await setHotkeyEnabled(enabled: hotkeyEnabled);
+  }
+
+  Menu _menu() => Menu(
+    items: [
+      MenuItem(key: _menuShow, label: 'Open Clipboard Sync'),
+      MenuItem(key: _menuSync, label: 'Sync now'),
+      MenuItem(
+        key: _menuPause,
+        label: _paused ? 'Resume capture' : 'Pause capture',
+      ),
+      MenuItem(key: _menuSettings, label: 'Settings…'),
+      MenuItem.separator(),
+      MenuItem(key: _menuQuit, label: 'Quit'),
+    ],
+  );
+
+  /// Reflects the pause state in the tray menu and tooltip.
+  Future<void> setPaused({required bool paused}) async {
+    if (!PlatformInfo.isDesktop || _paused == paused) return;
+    _paused = paused;
+    if (!_trayReady) return;
+    try {
+      await trayManager.setContextMenu(_menu());
+      await trayManager.setToolTip(
+        paused ? 'Clipboard Sync — capture paused' : 'Clipboard Sync',
+      );
+    } catch (e) {
+      log.w('tray update failed', error: e);
+    }
   }
 
   /// Registers or unregisters the global hotkey (Ctrl/Cmd+Shift+V).
@@ -158,6 +186,8 @@ class DesktopShell with TrayListener, WindowListener {
         unawaited(showWindow());
       case _menuSync:
         unawaited(onSyncNow());
+      case _menuPause:
+        unawaited(onTogglePause());
       case _menuSettings:
         unawaited(showWindow());
         onOpenSettings();

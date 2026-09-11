@@ -22,22 +22,61 @@ create table if not exists public.clip_items (
   nonce         text,
   created_at    timestamptz not null,
   updated_at    timestamptz not null,
-  deleted_at    timestamptz
+  deleted_at    timestamptz,
+  target_device_id text,                             -- "Send to…" one device
+  key_version   integer not null default 0,          -- passphrase version
+  sig           text                                 -- device signature
 );
 create index if not exists clip_items_updated_at_idx on public.clip_items (updated_at);
 create index if not exists clip_items_owner_idx      on public.clip_items (owner_id);
 
 -- Devices ---------------------------------------------------------------
 create table if not exists public.devices (
-  id         text primary key,
-  owner_id   uuid default auth.uid(),
-  name       text not null default '',
-  platform   text not null default '',
-  last_seen  timestamptz not null
+  id          text primary key,
+  owner_id    uuid default auth.uid(),
+  name        text not null default '',
+  platform    text not null default '',
+  last_seen   timestamptz not null,
+  app_version text,
+  status      text not null default 'active',       -- active | blocked | removed
+  role        text not null default 'full',         -- full | send_only | receive_only
+  expires_at  timestamptz,
+  paired_by   text,
+  sign_pub    text,                                 -- device Ed25519 public key
+  box_pub     text,                                 -- device X25519 public key
+  admin       boolean not null default false,
+  admin_pub   text,
+  membership_version integer not null default 0,
+  membership_sig text,
+  key_version integer not null default 0,
+  key_envelope text
 );
 
 -- Realtime --------------------------------------------------------------
 alter publication supabase_realtime add table public.clip_items;
+```
+
+### Upgrading from 0.1.0
+
+```sql
+alter table public.clip_items
+  add column if not exists target_device_id text,
+  add column if not exists key_version integer not null default 0,
+  add column if not exists sig text;
+alter table public.devices
+  add column if not exists app_version text,
+  add column if not exists status      text not null default 'active',
+  add column if not exists role        text not null default 'full',
+  add column if not exists expires_at  timestamptz,
+  add column if not exists paired_by   text,
+  add column if not exists sign_pub    text,
+  add column if not exists box_pub     text,
+  add column if not exists admin       boolean not null default false,
+  add column if not exists admin_pub   text,
+  add column if not exists membership_version integer not null default 0,
+  add column if not exists membership_sig text,
+  add column if not exists key_version integer not null default 0,
+  add column if not exists key_envelope text;
 ```
 
 ## 2. Lock it down (Row Level Security)

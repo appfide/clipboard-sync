@@ -44,6 +44,10 @@ class StatusPill extends StatelessWidget {
             ? (compact ? 'Error' : 'Needs attention')
             : 'Retrying',
       ),
+      SyncPhase.revoked => (
+        scheme.error,
+        compact ? 'Removed' : 'Access removed',
+      ),
     };
     return Semantics(
       label: 'Sync status: $label',

@@ -13,6 +13,22 @@ shows the same guidance in-app together with a live **Test** button.
 | Android | No — Android 10+ serves clipboard reads only to the focused app | n/a | n/a | No permission exists. Android 12+ shows a "pasted from …" notice on each read |
 | iOS | No — never in background | n/a | n/a | "Allow Paste?" on reads of content from other apps unless *Settings → Clipboard Sync → Paste from Other Apps → Allow*; Local Network prompt for LAN databases |
 
+## Sensitive-content hints
+
+Password managers mark clipboard content as "do not record". With *Skip
+password-manager content* on (default) the app checks the hint **before**
+reading the clipboard:
+
+| Platform | Hint honoured |
+|---|---|
+| macOS | `org.nspasteboard.ConcealedType`, `org.nspasteboard.TransientType` |
+| Windows | `ExcludeClipboardContentFromMonitorProcessing` clipboard format |
+| Android 13+ | `ClipDescription.EXTRA_IS_SENSITIVE` |
+| iOS, Linux | no standard hint exists — use *Skip keys and tokens* or *Pause capture* |
+
+Pairing: scanning a QR code needs the camera (Android, iOS). Desktops paste
+the copied code instead.
+
 ## Mobile capture flow
 
 Copy in any app → open Clipboard Sync (or tap **Capture**) → the app reads

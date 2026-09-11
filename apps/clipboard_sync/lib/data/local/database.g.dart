@@ -182,6 +182,17 @@ class $ClipItemsTable extends ClipItems
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _targetDeviceIdMeta = const VerificationMeta(
+    'targetDeviceId',
+  );
+  @override
+  late final GeneratedColumn<String> targetDeviceId = GeneratedColumn<String>(
+    'target_device_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -199,6 +210,7 @@ class $ClipItemsTable extends ClipItems
     deletedAt,
     synced,
     pinned,
+    targetDeviceId,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -315,6 +327,15 @@ class $ClipItemsTable extends ClipItems
         pinned.isAcceptableOrUnknown(data['pinned']!, _pinnedMeta),
       );
     }
+    if (data.containsKey('target_device_id')) {
+      context.handle(
+        _targetDeviceIdMeta,
+        targetDeviceId.isAcceptableOrUnknown(
+          data['target_device_id']!,
+          _targetDeviceIdMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -384,6 +405,10 @@ class $ClipItemsTable extends ClipItems
         DriftSqlType.bool,
         data['${effectivePrefix}pinned'],
       )!,
+      targetDeviceId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}target_device_id'],
+      ),
     );
   }
 
@@ -409,6 +434,7 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
   final DateTime? deletedAt;
   final bool synced;
   final bool pinned;
+  final String? targetDeviceId;
   const ClipRow({
     required this.id,
     required this.deviceId,
@@ -425,6 +451,7 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
     this.deletedAt,
     required this.synced,
     required this.pinned,
+    this.targetDeviceId,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -450,6 +477,9 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
     }
     map['synced'] = Variable<bool>(synced);
     map['pinned'] = Variable<bool>(pinned);
+    if (!nullToAbsent || targetDeviceId != null) {
+      map['target_device_id'] = Variable<String>(targetDeviceId);
+    }
     return map;
   }
 
@@ -476,6 +506,9 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
           : Value(deletedAt),
       synced: Value(synced),
       pinned: Value(pinned),
+      targetDeviceId: targetDeviceId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(targetDeviceId),
     );
   }
 
@@ -500,6 +533,7 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
       deletedAt: serializer.fromJson<DateTime?>(json['deletedAt']),
       synced: serializer.fromJson<bool>(json['synced']),
       pinned: serializer.fromJson<bool>(json['pinned']),
+      targetDeviceId: serializer.fromJson<String?>(json['targetDeviceId']),
     );
   }
   @override
@@ -521,6 +555,7 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
       'deletedAt': serializer.toJson<DateTime?>(deletedAt),
       'synced': serializer.toJson<bool>(synced),
       'pinned': serializer.toJson<bool>(pinned),
+      'targetDeviceId': serializer.toJson<String?>(targetDeviceId),
     };
   }
 
@@ -540,6 +575,7 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
     Value<DateTime?> deletedAt = const Value.absent(),
     bool? synced,
     bool? pinned,
+    Value<String?> targetDeviceId = const Value.absent(),
   }) => ClipRow(
     id: id ?? this.id,
     deviceId: deviceId ?? this.deviceId,
@@ -556,6 +592,9 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
     deletedAt: deletedAt.present ? deletedAt.value : this.deletedAt,
     synced: synced ?? this.synced,
     pinned: pinned ?? this.pinned,
+    targetDeviceId: targetDeviceId.present
+        ? targetDeviceId.value
+        : this.targetDeviceId,
   );
   ClipRow copyWithCompanion(ClipItemsCompanion data) {
     return ClipRow(
@@ -580,6 +619,9 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
       deletedAt: data.deletedAt.present ? data.deletedAt.value : this.deletedAt,
       synced: data.synced.present ? data.synced.value : this.synced,
       pinned: data.pinned.present ? data.pinned.value : this.pinned,
+      targetDeviceId: data.targetDeviceId.present
+          ? data.targetDeviceId.value
+          : this.targetDeviceId,
     );
   }
 
@@ -600,7 +642,8 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
           ..write('updatedAt: $updatedAt, ')
           ..write('deletedAt: $deletedAt, ')
           ..write('synced: $synced, ')
-          ..write('pinned: $pinned')
+          ..write('pinned: $pinned, ')
+          ..write('targetDeviceId: $targetDeviceId')
           ..write(')'))
         .toString();
   }
@@ -622,6 +665,7 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
     deletedAt,
     synced,
     pinned,
+    targetDeviceId,
   );
   @override
   bool operator ==(Object other) =>
@@ -641,7 +685,8 @@ class ClipRow extends DataClass implements Insertable<ClipRow> {
           other.updatedAt == this.updatedAt &&
           other.deletedAt == this.deletedAt &&
           other.synced == this.synced &&
-          other.pinned == this.pinned);
+          other.pinned == this.pinned &&
+          other.targetDeviceId == this.targetDeviceId);
 }
 
 class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
@@ -660,6 +705,7 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
   final Value<DateTime?> deletedAt;
   final Value<bool> synced;
   final Value<bool> pinned;
+  final Value<String?> targetDeviceId;
   final Value<int> rowid;
   const ClipItemsCompanion({
     this.id = const Value.absent(),
@@ -677,6 +723,7 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
     this.deletedAt = const Value.absent(),
     this.synced = const Value.absent(),
     this.pinned = const Value.absent(),
+    this.targetDeviceId = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   ClipItemsCompanion.insert({
@@ -695,6 +742,7 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
     this.deletedAt = const Value.absent(),
     this.synced = const Value.absent(),
     this.pinned = const Value.absent(),
+    this.targetDeviceId = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        deviceId = Value(deviceId),
@@ -717,6 +765,7 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
     Expression<DateTime>? deletedAt,
     Expression<bool>? synced,
     Expression<bool>? pinned,
+    Expression<String>? targetDeviceId,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -735,6 +784,7 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
       if (deletedAt != null) 'deleted_at': deletedAt,
       if (synced != null) 'synced': synced,
       if (pinned != null) 'pinned': pinned,
+      if (targetDeviceId != null) 'target_device_id': targetDeviceId,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -755,6 +805,7 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
     Value<DateTime?>? deletedAt,
     Value<bool>? synced,
     Value<bool>? pinned,
+    Value<String?>? targetDeviceId,
     Value<int>? rowid,
   }) {
     return ClipItemsCompanion(
@@ -773,6 +824,7 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
       deletedAt: deletedAt ?? this.deletedAt,
       synced: synced ?? this.synced,
       pinned: pinned ?? this.pinned,
+      targetDeviceId: targetDeviceId ?? this.targetDeviceId,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -825,6 +877,9 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
     if (pinned.present) {
       map['pinned'] = Variable<bool>(pinned.value);
     }
+    if (targetDeviceId.present) {
+      map['target_device_id'] = Variable<String>(targetDeviceId.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -849,6 +904,7 @@ class ClipItemsCompanion extends UpdateCompanion<ClipRow> {
           ..write('deletedAt: $deletedAt, ')
           ..write('synced: $synced, ')
           ..write('pinned: $pinned, ')
+          ..write('targetDeviceId: $targetDeviceId, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -1095,6 +1151,7 @@ typedef $$ClipItemsTableCreateCompanionBuilder =
       Value<DateTime?> deletedAt,
       Value<bool> synced,
       Value<bool> pinned,
+      Value<String?> targetDeviceId,
       Value<int> rowid,
     });
 typedef $$ClipItemsTableUpdateCompanionBuilder =
@@ -1114,6 +1171,7 @@ typedef $$ClipItemsTableUpdateCompanionBuilder =
       Value<DateTime?> deletedAt,
       Value<bool> synced,
       Value<bool> pinned,
+      Value<String?> targetDeviceId,
       Value<int> rowid,
     });
 
@@ -1198,6 +1256,11 @@ class $$ClipItemsTableFilterComposer
 
   ColumnFilters<bool> get pinned => $composableBuilder(
     column: $table.pinned,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get targetDeviceId => $composableBuilder(
+    column: $table.targetDeviceId,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1285,6 +1348,11 @@ class $$ClipItemsTableOrderingComposer
     column: $table.pinned,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get targetDeviceId => $composableBuilder(
+    column: $table.targetDeviceId,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$ClipItemsTableAnnotationComposer
@@ -1346,6 +1414,11 @@ class $$ClipItemsTableAnnotationComposer
 
   GeneratedColumn<bool> get pinned =>
       $composableBuilder(column: $table.pinned, builder: (column) => column);
+
+  GeneratedColumn<String> get targetDeviceId => $composableBuilder(
+    column: $table.targetDeviceId,
+    builder: (column) => column,
+  );
 }
 
 class $$ClipItemsTableTableManager
@@ -1391,6 +1464,7 @@ class $$ClipItemsTableTableManager
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<bool> synced = const Value.absent(),
                 Value<bool> pinned = const Value.absent(),
+                Value<String?> targetDeviceId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ClipItemsCompanion(
                 id: id,
@@ -1408,6 +1482,7 @@ class $$ClipItemsTableTableManager
                 deletedAt: deletedAt,
                 synced: synced,
                 pinned: pinned,
+                targetDeviceId: targetDeviceId,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1427,6 +1502,7 @@ class $$ClipItemsTableTableManager
                 Value<DateTime?> deletedAt = const Value.absent(),
                 Value<bool> synced = const Value.absent(),
                 Value<bool> pinned = const Value.absent(),
+                Value<String?> targetDeviceId = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => ClipItemsCompanion.insert(
                 id: id,
@@ -1444,6 +1520,7 @@ class $$ClipItemsTableTableManager
                 deletedAt: deletedAt,
                 synced: synced,
                 pinned: pinned,
+                targetDeviceId: targetDeviceId,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

@@ -34,3 +34,9 @@ Server-side (GitHub)
 
 Release integrity
 - Releases are built only by GitHub Actions from tagged commits on `main`; `SHA256SUMS.txt` accompanies every release.
+
+## Threat model
+
+How devices, pairing codes, signatures and key rotation protect a sync
+group — and what they do not cover — is documented in
+[`docs/devices.md`](docs/devices.md#how-access-is-enforced--read-this).

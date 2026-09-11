@@ -1,3 +1,4 @@
+import 'package:clipsync_core/src/model/device.dart';
 import 'package:meta/meta.dart';
 
 /// Engine state.
@@ -13,6 +14,10 @@ enum SyncPhase {
 
   /// Last operation failed; will retry unless [SyncStatus.authFailed].
   error,
+
+  /// This device was blocked, removed, or its access expired. The engine
+  /// has stopped itself; the app must forget the credentials.
+  revoked,
 }
 
 /// Snapshot of engine state for the UI.
@@ -26,6 +31,11 @@ class SyncStatus {
     this.pendingCount = 0,
     this.authFailed = false,
     this.realtime = false,
+    this.role = DeviceRole.full,
+    this.revokedReason,
+    this.signedGroup = false,
+    this.selfVerified = true,
+    this.keyVersion = 0,
   });
 
   /// Initial status.
@@ -49,6 +59,22 @@ class SyncStatus {
   /// Whether a realtime subscription is active.
   final bool realtime;
 
+  /// Role the group assigned to this device (from its device row).
+  final DeviceRole role;
+
+  /// Why the engine stopped when [phase] is [SyncPhase.revoked].
+  final String? revokedReason;
+
+  /// Whether an admin key is pinned (membership and clips are verified).
+  final bool signedGroup;
+
+  /// In a signed group: whether this device's own row carries a valid admin
+  /// signature. When false, other devices ignore this device's clips.
+  final bool selfVerified;
+
+  /// Newest passphrase version this device holds (0 = no encryption).
+  final int keyVersion;
+
   /// Copy with fields replaced.
   SyncStatus copyWith({
     SyncPhase? phase,
@@ -57,6 +83,11 @@ class SyncStatus {
     int? pendingCount,
     bool? authFailed,
     bool? realtime,
+    DeviceRole? role,
+    String? revokedReason,
+    bool? signedGroup,
+    bool? selfVerified,
+    int? keyVersion,
     bool clearError = false,
   }) => SyncStatus(
     phase: phase ?? this.phase,
@@ -65,6 +96,11 @@ class SyncStatus {
     pendingCount: pendingCount ?? this.pendingCount,
     authFailed: authFailed ?? this.authFailed,
     realtime: realtime ?? this.realtime,
+    role: role ?? this.role,
+    revokedReason: revokedReason ?? this.revokedReason,
+    signedGroup: signedGroup ?? this.signedGroup,
+    selfVerified: selfVerified ?? this.selfVerified,
+    keyVersion: keyVersion ?? this.keyVersion,
   );
 
   @override

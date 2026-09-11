@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:clipboard_sync/core/logging.dart';
 import 'package:clipboard_sync/core/platform_info.dart';
+import 'package:clipboard_sync/platform/clipboard_hints.dart';
 import 'package:clipboard_watcher/clipboard_watcher.dart';
 import 'package:clipsync_core/clipsync_core.dart';
 import 'package:flutter/services.dart';
@@ -59,6 +60,11 @@ class ClipboardProbe {
 ///
 /// Items this service itself wrote to the clipboard are remembered by hash so
 /// they are not re-captured (echo suppression at the source).
+///
+/// Three filters run before anything is recorded: [paused] (nothing is
+/// read at all), [skipSensitive] (OS "concealed / transient" hints from
+/// password managers, checked *before* the read) and [skipSecretLike]
+/// (text that matches credential patterns).
 class ClipboardService with ClipboardListener, WidgetsBindingObserver {
   /// Creates a service; call [start].
   ClipboardService({
@@ -66,10 +72,13 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
     required this.deviceName,
     required this.captureImages,
     required this.maxInlineBytes,
+    this._paused = false,
+    this.skipSensitive = true,
+    this.skipSecretLike = false,
   });
 
-  /// This device.
-  final String deviceId;
+  /// This device (changes when a pairing code is adopted).
+  String deviceId;
 
   /// Name stamped on captured items.
   String deviceName;
@@ -79,6 +88,36 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
 
   /// Images larger than this are skipped.
   int maxInlineBytes;
+
+  /// Honour OS sensitive-content hints.
+  bool skipSensitive;
+
+  /// Skip text that looks like a credential.
+  bool skipSecretLike;
+
+  bool _paused;
+
+  /// Whether capture is paused. Resuming primes the last-seen hash so what
+  /// was copied *while* paused is not recorded retroactively.
+  bool get paused => _paused;
+  set paused(bool value) {
+    if (value == _paused) return;
+    _paused = value;
+    if (!value && _running) unawaited(_prime());
+  }
+
+  /// Reads the clipboard and records its hash without emitting.
+  Future<void> _prime() async {
+    try {
+      final snap = await read();
+      if (snap == null) return;
+      _lastSeenHash = snap.bytes != null
+          ? sha256HexBytes(snap.bytes!)
+          : sha256Hex(snap.text);
+    } catch (_) {
+      // best effort
+    }
+  }
 
   final _captured = StreamController<ClipItem>.broadcast();
   String? _lastWrittenHash;
@@ -95,10 +134,12 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
     _running = true;
     WidgetsBinding.instance.addObserver(this);
     if (PlatformInfo.isDesktop) {
-      clipboardWatcher.addListener(this);
-      await clipboardWatcher.start();
-    }
-    if (PlatformInfo.isDesktop) {
+      try {
+        clipboardWatcher.addListener(this);
+        await clipboardWatcher.start();
+      } on MissingPluginException catch (e) {
+        log.w('clipboard watcher unavailable', error: e);
+      }
       unawaited(checkNow());
     } else if (Platform.isAndroid) {
       // Android needs window focus first; read once the UI is up.
@@ -119,7 +160,11 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     if (PlatformInfo.isDesktop) {
       clipboardWatcher.removeListener(this);
-      await clipboardWatcher.stop();
+      try {
+        await clipboardWatcher.stop();
+      } on MissingPluginException {
+        // never started
+      }
     }
   }
 
@@ -153,9 +198,13 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
 
   /// Reads the clipboard and emits a [ClipItem] if it changed.
   Future<void> checkNow() async {
-    if (!_running || _reading) return;
+    if (!_running || _reading || _paused) return;
     _reading = true;
     try {
+      if (skipSensitive && await ClipboardHints.isSensitive()) {
+        log.i('clipboard content flagged sensitive by its source, skipped');
+        return;
+      }
       final snap = await read();
       if (snap == null) return;
       final payload = snap.bytes != null
@@ -168,6 +217,14 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
       if (hash == _lastSeenHash) return;
       _lastSeenHash = hash;
       if (hash == _lastWrittenHash) return; // we put it there
+      if (!snap.type.isBinary && PairingCodec.looksLikeCode(snap.text)) {
+        log.i('pairing code on clipboard, never recorded');
+        return;
+      }
+      if (skipSecretLike && !snap.type.isBinary && looksLikeSecret(snap.text)) {
+        log.i('clipboard text looks like a credential, skipped');
+        return;
+      }
       final size = snap.bytes?.length ?? utf8.encode(snap.text).length;
       if (snap.type.isBinary && size > maxInlineBytes) {
         log.i('clipboard image ${size ~/ 1024} KB exceeds inline cap, skipped');
@@ -262,6 +319,14 @@ class ClipboardService with ClipboardListener, WidgetsBindingObserver {
         'Clipboard plugin unavailable in this build.',
       );
     }
+  }
+
+  /// Puts [text] on the clipboard without recording it (pairing codes).
+  Future<void> writeText(String text) async {
+    final hash = sha256Hex(text);
+    _lastWrittenHash = hash;
+    _lastSeenHash = hash;
+    await Clipboard.setData(ClipboardData(text: text));
   }
 
   /// Puts [item] on the clipboard and suppresses the resulting echo.

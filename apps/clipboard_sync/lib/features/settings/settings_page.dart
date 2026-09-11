@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:clipboard_sync/core/platform_info.dart';
 import 'package:clipboard_sync/features/settings/permissions_section.dart';
+import 'package:clipboard_sync/features/sync/sync_controller.dart';
 import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
 import 'package:clipboard_sync/ui/widgets/section_card.dart';
@@ -23,6 +24,8 @@ class SettingsPage extends ConsumerWidget {
         .watch(backendRegistryProvider)
         .descriptor(s.backendId);
     final shell = ref.watch(desktopShellProvider);
+    final status = ref.watch(syncControllerProvider);
+    final devices = ref.watch(deviceListProvider).value ?? const [];
     final theme = Theme.of(context);
 
     return Scaffold(
@@ -112,6 +115,36 @@ class SettingsPage extends ConsumerWidget {
                 title: 'Capture',
                 children: [
                   SwitchRow(
+                    icon: s.capturePaused
+                        ? Icons.pause_circle_filled_rounded
+                        : Icons.pause_circle_outline_rounded,
+                    title: 'Pause capture',
+                    subtitle: s.capturePaused
+                        ? 'Paused — nothing is recorded or synced'
+                        : 'Temporarily stop recording the clipboard',
+                    value: s.capturePaused,
+                    onChanged: (v) =>
+                        notifier.update((x) => x.copyWith(capturePaused: v)),
+                  ),
+                  SwitchRow(
+                    icon: Icons.password_rounded,
+                    title: 'Skip password-manager content',
+                    subtitle:
+                        'Honour the “concealed” hint set by password managers (macOS, Windows, Android 13+)',
+                    value: s.skipSensitive,
+                    onChanged: (v) =>
+                        notifier.update((x) => x.copyWith(skipSensitive: v)),
+                  ),
+                  SwitchRow(
+                    icon: Icons.key_off_rounded,
+                    title: 'Skip keys and tokens',
+                    subtitle:
+                        'Never record text that looks like an API key, token, private key or connection string',
+                    value: s.skipSecretLike,
+                    onChanged: (v) =>
+                        notifier.update((x) => x.copyWith(skipSecretLike: v)),
+                  ),
+                  SwitchRow(
                     icon: Icons.image_outlined,
                     title: 'Capture images',
                     subtitle: 'Up to ${s.maxInlineKb} KB per image',
@@ -166,12 +199,13 @@ class SettingsPage extends ConsumerWidget {
                   ],
                 ),
               SectionCard(
-                title: 'This device',
+                title: 'Devices',
                 children: [
                   SettingRow(
                     icon: Icons.devices_rounded,
-                    title: 'Device name',
-                    subtitle: s.deviceName,
+                    title: 'This device',
+                    subtitle:
+                        '${s.deviceName}${status.role != DeviceRole.full ? ' · ${status.role.label}' : ''} · tap to rename',
                     onTap: () async {
                       final name = await promptText(
                         context,
@@ -185,6 +219,39 @@ class SettingsPage extends ConsumerWidget {
                       }
                     },
                   ),
+                  SettingRow(
+                    key: const ValueKey('manage-devices'),
+                    icon: Icons.hub_rounded,
+                    title: 'Manage devices',
+                    subtitle: s.syncsRemotely
+                        ? '${devices.length} in this group · block, remove, roles, expiry'
+                        : 'Local only — no sync group',
+                    onTap: () => context.push('/settings/devices'),
+                  ),
+                  SettingRow(
+                    key: const ValueKey('add-device'),
+                    icon: Icons.qr_code_2_rounded,
+                    title: 'Add a device',
+                    subtitle: s.syncsRemotely
+                        ? 'Show a QR code or copy a pairing code'
+                        : 'Connect a database first',
+                    onTap: s.syncsRemotely
+                        ? () => context.push('/settings/devices/pair')
+                        : null,
+                  ),
+                  SettingRow(
+                    key: const ValueKey('join-group'),
+                    icon: Icons.qr_code_scanner_rounded,
+                    title: 'Join another group',
+                    subtitle:
+                        'Scan or paste a pairing code from another device',
+                    onTap: () => context.push('/settings/devices/join'),
+                  ),
+                ],
+              ),
+              SectionCard(
+                title: 'Support',
+                children: [
                   SettingRow(
                     icon: Icons.bug_report_outlined,
                     title: 'Diagnostics',
@@ -297,9 +364,67 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
     if (mounted) setState(() => _fingerprint = fp);
   }
 
+  Future<void> _reveal() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Show the passphrase?'),
+        content: const Text(
+          'Anyone who sees it can read your synced history. Make sure nobody is watching the screen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Show'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final pass = await ref
+        .read(syncControllerProvider.notifier)
+        .revealPassphrase();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Passphrase'),
+        content: SelectableText(
+          pass ?? '(none)',
+          style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
+            fontFamily: 'monospace',
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _toggle(bool enable) async {
     final repo = ref.read(settingsRepositoryProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final controller = ref.read(syncControllerProvider.notifier);
+    if (enable && controller.isSignedGroup && !controller.isAdmin) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Only the admin device can change the passphrase of a secured group; it can rotate the key from Devices.',
+            ),
+          ),
+        );
+      return;
+    }
     if (!enable) {
       await notifier.update((x) => x.copyWith(encryptionEnabled: false));
       await repo.savePassphrase(null);
@@ -323,6 +448,7 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
+    final status = ref.watch(syncControllerProvider);
     final c = context.colors;
     return Column(
       children: [
@@ -332,12 +458,21 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
               : Icons.lock_open_rounded,
           title: 'End-to-end encryption',
           subtitle: s.encryptionEnabled
-              ? 'On · key fingerprint ${_fingerprint ?? '…'} — must match on every device'
+              ? 'On · key v${status.keyVersion} · fingerprint ${_fingerprint ?? '…'} — must match on every device'
               : 'Off · the database can read your clipboard',
           value: s.encryptionEnabled,
           onChanged: _toggle,
         ),
         if (s.encryptionEnabled) ...[
+          const Divider(),
+          SettingRow(
+            icon: Icons.visibility_outlined,
+            title: 'Show passphrase',
+            subtitle:
+                'Only needed to join by typing credentials — pairing delivers it sealed',
+            tint: c.muted,
+            onTap: _reveal,
+          ),
           const Divider(),
           SettingRow(
             icon: Icons.key_rounded,

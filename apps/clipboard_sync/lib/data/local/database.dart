@@ -21,6 +21,7 @@ class ClipItems extends Table {
   DateTimeColumn get deletedAt => dateTime().nullable()();
   BoolColumn get synced => boolean().withDefault(const Constant(false))();
   BoolColumn get pinned => boolean().withDefault(const Constant(false))();
+  TextColumn get targetDeviceId => text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {id};
@@ -45,10 +46,15 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase.withExecutor(super.e);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
+    onUpgrade: (m, from, to) async {
+      if (from < 2) {
+        await m.addColumn(clipItems, clipItems.targetDeviceId);
+      }
+    },
     onCreate: (m) async {
       await m.createAll();
       await customStatement(

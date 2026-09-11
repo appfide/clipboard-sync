@@ -99,24 +99,36 @@ class DriftLocalStore implements LocalStore {
 
   /// Inserts a locally captured item into the outbox. Returns false if an
   /// identical live item already sits at the top of the history.
-  Future<bool> capture(ClipItem item) async {
+  ///
+  /// With [localOnly] the row is stored as already synced so it never leaves
+  /// this device (receive-only role, or capture while paused from sync).
+  Future<bool> capture(ClipItem item, {bool localOnly = false}) async {
     final top =
         await (db.select(db.clipItems)
-              ..where((t) => t.deletedAt.isNull())
+              ..where((t) => t.deletedAt.isNull() & t.targetDeviceId.isNull())
               ..orderBy([(t) => OrderingTerm.desc(t.createdAt)])
               ..limit(1))
             .getSingleOrNull();
     if (top != null && top.contentHash == item.contentHash) return false;
     await db
         .into(db.clipItems)
-        .insert(_toCompanion(item, synced: false, pinned: false));
+        .insert(_toCompanion(item, synced: localOnly, pinned: false));
     return true;
   }
 
-  /// Live history, newest first, optionally filtered by [query].
+  /// Queues an item for push without the top-of-history de-duplication
+  /// (used for "Send to device" copies, which carry a target).
+  Future<void> enqueue(ClipItem item) => db
+      .into(db.clipItems)
+      .insert(_toCompanion(item, synced: false, pinned: false));
+
+  /// Live history, newest first, optionally filtered by [query]. Targeted
+  /// copies this device *sent* to another device are hidden (they are
+  /// duplicates of the original); targeted items *received* are shown.
   Stream<List<HistoryEntry>> watchHistory({
     String query = '',
     int limit = 500,
+    String? ownDeviceId,
   }) {
     final q = db.select(db.clipItems)
       ..where((t) => t.deletedAt.isNull())
@@ -125,6 +137,11 @@ class DriftLocalStore implements LocalStore {
         (t) => OrderingTerm.desc(t.createdAt),
       ])
       ..limit(limit);
+    if (ownDeviceId != null) {
+      q.where(
+        (t) => t.targetDeviceId.isNull() | t.deviceId.equals(ownDeviceId).not(),
+      );
+    }
     if (query.trim().isNotEmpty) {
       q.where(
         (t) => t.content.like('%${query.trim()}%') & t.encrypted.equals(false),
@@ -208,6 +225,7 @@ class DriftLocalStore implements LocalStore {
     createdAt: r.createdAt.toUtc(),
     updatedAt: r.updatedAt.toUtc(),
     deletedAt: r.deletedAt?.toUtc(),
+    targetDeviceId: r.targetDeviceId,
   );
 
   static ClipItemsCompanion _toCompanion(
@@ -230,6 +248,7 @@ class DriftLocalStore implements LocalStore {
     deletedAt: Value(i.deletedAt?.toUtc()),
     synced: Value(synced),
     pinned: Value(pinned),
+    targetDeviceId: Value(i.targetDeviceId),
   );
 }
 

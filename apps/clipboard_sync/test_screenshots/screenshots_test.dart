@@ -9,6 +9,7 @@ import 'package:clipboard_sync/app/router.dart';
 import 'package:clipboard_sync/data/local/database.dart';
 import 'package:clipboard_sync/data/local/local_store.dart';
 import 'package:clipboard_sync/data/settings/app_settings.dart';
+import 'package:clipboard_sync/data/settings/secret_store.dart';
 import 'package:clipboard_sync/features/sync/sync_controller.dart';
 import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
@@ -27,7 +28,27 @@ class _LiveSync extends SyncController {
     phase: SyncPhase.idle,
     realtime: true,
     lastSyncAt: DateTime.now().toUtc(),
+    signedGroup: true,
+    keyVersion: 2,
   );
+
+  @override
+  bool get isAdmin => true;
+
+  @override
+  bool get isSignedGroup => true;
+
+  @override
+  bool get canEditMembership => true;
+
+  @override
+  String? get adminFingerprint => '7c3e 91a4';
+
+  @override
+  Set<String> get trustedDeviceIds => _devices
+      .where((d) => d.status == DeviceStatus.active && !d.isPending)
+      .map((d) => d.id)
+      .toSet();
 }
 
 Future<void> _loadFonts() async {
@@ -74,6 +95,65 @@ ClipItem _clip(
     now: t,
   );
 }
+
+Device _device(
+  String id,
+  String name,
+  String platform, {
+  required Duration ago,
+  DeviceStatus status = DeviceStatus.active,
+  DeviceRole role = DeviceRole.full,
+  Duration? expiresIn,
+  bool pending = false,
+  bool admin = false,
+}) => Device(
+  id: id,
+  name: name,
+  platform: platform,
+  lastSeen: pending
+      ? DateTime.fromMillisecondsSinceEpoch(0, isUtc: true)
+      : DateTime.now().toUtc().subtract(ago),
+  status: status,
+  role: role,
+  expiresAt: expiresIn == null ? null : DateTime.now().toUtc().add(expiresIn),
+  appVersion: '0.2.0',
+  admin: admin,
+);
+
+final List<Device> _devices = [
+  _device(
+    'macbook-pro',
+    'MacBook Pro',
+    'macos',
+    ago: Duration.zero,
+    admin: true,
+  ),
+  _device('pixel-9', 'Pixel 9', 'android', ago: const Duration(minutes: 1)),
+  _device(
+    'work-pc',
+    'Work PC',
+    'windows',
+    ago: const Duration(hours: 1),
+    role: DeviceRole.sendOnly,
+    expiresIn: const Duration(hours: 5),
+  ),
+  _device('iphone', 'iPhone', 'ios', ago: const Duration(hours: 3)),
+  _device(
+    'living-room-tv',
+    'Living room TV',
+    'linux',
+    ago: const Duration(days: 2),
+    role: DeviceRole.receiveOnly,
+  ),
+  _device(
+    'old-laptop',
+    'Old laptop',
+    'linux',
+    ago: const Duration(days: 12),
+    status: DeviceStatus.blocked,
+  ),
+  _device('pending', 'Pending device', '', ago: Duration.zero, pending: true),
+];
 
 Future<AppDatabase> _seededDb() async {
   final db = AppDatabase.withExecutor(NativeDatabase.memory());
@@ -184,6 +264,7 @@ void main() {
           databaseProvider.overrideWithValue(db),
           settingsProvider.overrideWith(() => SeededSettings(settings)),
           syncControllerProvider.overrideWith(_LiveSync.new),
+          deviceListProvider.overrideWith((ref) => Stream.value(_devices)),
           routerProvider.overrideWithValue(router),
         ],
         child: MaterialApp.router(
@@ -207,6 +288,9 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
+    // Credential-store reads are bounded by a 10 s timeout; let it elapse
+    // under the fake clock so no timer outlives the test.
+    await tester.pump(SecretStore.timeout + const Duration(seconds: 1));
     await tester.runAsync(db.close);
   }
 
@@ -266,6 +350,29 @@ void main() {
       location: '/settings/backend',
       mode: ThemeMode.light,
       size: desktop,
+    ),
+  );
+  testWidgets(
+    'devices desktop light',
+    timeout: const Timeout(Duration(seconds: 60)),
+    (t) => shot(
+      t,
+      name: 'devices-desktop-light',
+      location: '/settings/devices',
+      mode: ThemeMode.light,
+      size: desktop,
+    ),
+  );
+  testWidgets(
+    'devices phone dark',
+    timeout: const Timeout(Duration(seconds: 60)),
+    (t) => shot(
+      t,
+      name: 'devices-phone-dark',
+      location: '/settings/devices',
+      mode: ThemeMode.dark,
+      size: phone,
+      dpr: 3,
     ),
   );
   testWidgets(

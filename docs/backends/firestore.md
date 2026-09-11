@@ -14,8 +14,8 @@ Polling only — no realtime.
 
 Collections are created lazily; no schema to import. Documents:
 
-- `clip_items/{uuid}` — canonical fields, timestamps as `timestamp` values
-- `devices/{uuid}` — `name`, `platform`, `last_seen`
+- `clip_items/{uuid}` — canonical fields (including `target_device_id`, `key_version`, `sig`), timestamps as `timestamp` values
+- `devices/{uuid}` — presence, membership, key and signature fields (see the schema reference in [devices.md](../devices.md)); no migration needed from 0.1.0
 
 ## 2. Security rules
 

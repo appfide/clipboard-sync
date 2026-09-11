@@ -28,7 +28,10 @@ db.clip_items.createIndex({ updated_at: 1 }, { expireAfterSeconds: 2592000, name
 ```
 
 Documents use `_id = <uuid string>` and native `Date` values for
-`created_at` / `updated_at` / `deleted_at`.
+`created_at` / `updated_at` / `deleted_at` / `expires_at`. Device documents
+carry the membership, key and signature fields listed in
+[devices.md](../devices.md); clips carry `target_device_id`, `key_version`
+and `sig`. No migration is needed from 0.1.0.
 
 ## 2. App settings
 

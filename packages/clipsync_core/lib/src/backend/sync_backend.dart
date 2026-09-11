@@ -119,10 +119,21 @@ abstract class SyncBackend {
   /// the id is unknown.
   Future<void> tombstone(String id, DateTime now);
 
-  /// Registers or refreshes this device's heartbeat.
+  /// Heartbeat: creates the device row if missing, otherwise refreshes
+  /// **only** the presence fields ([Device.presenceMap]). Must never
+  /// overwrite membership fields (`status`, `role`, `expires_at`,
+  /// `paired_by`) that another device set with [updateDevice].
   Future<void> registerDevice(Device device);
 
-  /// Lists known devices.
+  /// Writes the full device row — presence and membership fields. Used by
+  /// the managing device to block, re-activate, change the role or expiry,
+  /// mark as removed, or pre-create a row for a pairing code.
+  Future<void> updateDevice(Device device);
+
+  /// Physically deletes the device row ("Forget"). Idempotent.
+  Future<void> deleteDevice(String id);
+
+  /// Lists known devices, including blocked, removed and pending ones.
   Future<List<Device>> listDevices();
 
   /// Physically removes items and tombstones with `updated_at < before`.
