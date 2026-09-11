@@ -137,6 +137,7 @@ class SyncController extends Notifier<SyncStatus> {
   StreamSubscription<ClipItem>? _captureSub;
   Timer? _retention;
   final _devicesOut = StreamController<List<Device>>.broadcast();
+  Future<void> _lifecycle = Future.value();
   DeviceKeys? _identity;
   AdminKey? _adminKey;
   String? _trustedAdminPub;
@@ -215,12 +216,21 @@ class SyncController extends Notifier<SyncStatus> {
   /// This device's signing-key fingerprint, or `null` before first start.
   String? get deviceFingerprint => _identity?.fingerprint;
 
+  /// Runs [op] after every earlier lifecycle operation finished, so two
+  /// restarts (settings listener + an explicit call) never interleave and
+  /// spawn two engines.
+  Future<void> _serial(Future<void> Function() op) {
+    final next = _lifecycle.catchError((_) {}).then((_) => op());
+    _lifecycle = next;
+    return next;
+  }
+
   /// Starts sync, then clipboard capture, from current settings.
   Future<void> start() async {
     final s = ref.read(settingsProvider);
     // Engine first: a clipboard permission prompt on mobile must never
     // delay connecting to the backend.
-    await _startEngine(s);
+    await _serial(() => _startEngine(s));
     if (_clipboard == null) {
       final c = ClipboardService(
         deviceId: s.deviceId,
@@ -252,10 +262,11 @@ class SyncController extends Notifier<SyncStatus> {
   }
 
   /// Stops and starts the engine (settings changed).
-  Future<void> restart() async {
+  Future<void> restart() => _serial(() async {
     await _stopEngine();
+    if (!ref.mounted) return;
     await _startEngine(ref.read(settingsProvider));
-  }
+  });
 
   /// Push + pull now.
   Future<void> syncNow() async => _engine?.syncNow();
@@ -506,6 +517,29 @@ class SyncController extends Notifier<SyncStatus> {
     await _managed.secureGroup();
     log.i('group secured; admin key ${key.fingerprint}');
   }
+
+  /// Default protection for a group this device just created or joined by
+  /// typing credentials: turns on encryption with a fresh random passphrase
+  /// (other devices receive it sealed through pairing) and secures the
+  /// group with an admin key. No-op when the group is already signed.
+  Future<void> secureNewGroup() async {
+    final s = ref.read(settingsProvider);
+    if (!s.syncsRemotely) return;
+    final repo = ref.read(settingsRepositoryProvider);
+    if (repo.loadTrustedAdminPub(s.backendScope) != null) return;
+    if (!s.encryptionEnabled) {
+      final bytes = List<int>.generate(32, (_) => Random.secure().nextInt(256));
+      await repo.saveKeyring({1: base64UrlEncode(bytes)});
+      await ref
+          .read(settingsProvider.notifier)
+          .update((x) => x.copyWith(encryptionEnabled: true));
+    }
+    await secureGroup();
+  }
+
+  /// Newest passphrase (for showing it to the user on request).
+  Future<String?> revealPassphrase() =>
+      ref.read(settingsRepositoryProvider).loadPassphrase();
 
   /// Pins [adminPub] for the current group after the user compared the
   /// fingerprint with the admin device.

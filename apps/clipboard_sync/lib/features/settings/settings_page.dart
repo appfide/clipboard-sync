@@ -364,6 +364,51 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
     if (mounted) setState(() => _fingerprint = fp);
   }
 
+  Future<void> _reveal() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Show the passphrase?'),
+        content: const Text(
+          'Anyone who sees it can read your synced history. Make sure nobody is watching the screen.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Show'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final pass = await ref
+        .read(syncControllerProvider.notifier)
+        .revealPassphrase();
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Passphrase'),
+        content: SelectableText(
+          pass ?? '(none)',
+          style: Theme.of(ctx).textTheme.bodyLarge?.copyWith(
+            fontFamily: 'monospace',
+          ),
+        ),
+        actions: [
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _toggle(bool enable) async {
     final repo = ref.read(settingsRepositoryProvider);
     final notifier = ref.read(settingsProvider.notifier);
@@ -419,6 +464,15 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
           onChanged: _toggle,
         ),
         if (s.encryptionEnabled) ...[
+          const Divider(),
+          SettingRow(
+            icon: Icons.visibility_outlined,
+            title: 'Show passphrase',
+            subtitle:
+                'Only needed to join by typing credentials — pairing delivers it sealed',
+            tint: c.muted,
+            onTap: _reveal,
+          ),
           const Divider(),
           SettingRow(
             icon: Icons.key_rounded,

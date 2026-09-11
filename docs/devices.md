@@ -82,7 +82,14 @@ database itself cannot tell them apart. Clipboard Sync therefore enforces
 membership cryptographically, on every device, instead of relying on the
 database:
 
-### Signed groups (recommended — the default for groups created with 0.2+)
+### Signed groups (the default for groups created with 0.2+)
+
+Choosing a database with *Encrypt and sign this group* on (the default)
+generates a random passphrase, turns on end-to-end encryption and makes that
+device the admin in one step. Nothing has to be typed on other devices: they
+receive the passphrase sealed through pairing. *Settings → Privacy → Show
+passphrase* reveals it if a device must join by typing the database
+credentials instead.
 
 - Every device has an **identity**: an Ed25519 signing key and an X25519
   key. The private halves live only in the OS credential store.

@@ -25,7 +25,7 @@ class PairPage extends ConsumerStatefulWidget {
 class _PairPageState extends ConsumerState<PairPage> {
   DeviceRole _role = DeviceRole.full;
   Duration? _access;
-  bool _includePassphrase = false;
+  late bool _includePassphrase = ref.read(settingsProvider).encryptionEnabled;
   bool _grantAdmin = false;
   bool _busy = false;
   PairingSession? _session;

@@ -325,4 +325,81 @@ void main() {
       await host.dispose();
     },
   );
+
+  group('default security', _defaultSecurityTests);
+}
+
+void _defaultSecurityTests() {
+  test('secureNewGroup encrypts with a random passphrase and signs', () async {
+    final shared = MemoryStore();
+    final host = await _boot(_host.copyWith(encryptionEnabled: false), shared);
+    await host.sync.start();
+    expect(host.sync.isSignedGroup, isFalse);
+    await host.sync.secureNewGroup();
+    final s = host.c.read(settingsProvider);
+    expect(s.encryptionEnabled, isTrue);
+    final pass = await host.sync.revealPassphrase();
+    expect(pass, isNotNull);
+    expect(pass!.length, greaterThanOrEqualTo(40), reason: '32 random bytes');
+    expect(host.sync.isSignedGroup, isTrue);
+    expect(host.sync.isAdmin, isTrue);
+    expect(host.status.selfVerified, isTrue);
+    expect(host.status.keyVersion, 1);
+    // Idempotent: a second call changes nothing.
+    final fp = host.sync.adminFingerprint;
+    await host.sync.secureNewGroup();
+    expect(host.sync.adminFingerprint, fp);
+    expect(await host.sync.revealPassphrase(), pass);
+    // Clips are sealed from the first push.
+    await host.c
+        .read(localStoreProvider)
+        .capture(_clip('secret', device: 'host-id'));
+    await host.sync.syncNow();
+    expect(shared.items.values.single.encrypted, isTrue);
+    expect(shared.items.values.single.isSigned, isTrue);
+    // A device pairing in gets the passphrase sealed and can read it.
+    final session = await host.sync.createPairing(
+      role: DeviceRole.full,
+      includePassphrase: true,
+    );
+    final joiner = await _boot(
+      const AppSettings(deviceId: 'j', deviceName: 'J', onboarded: true),
+      shared,
+    );
+    await joiner.sync.start();
+    await joiner.sync.joinFromPairing(
+      await PairingCodec.open(session.code, session.pin),
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    await joiner.sync.syncNow();
+    expect(await _history(joiner), ['secret']);
+    await joiner.dispose();
+    await host.dispose();
+  });
+
+  test('concurrent restarts never leave two engines running', () async {
+    final shared = MemoryStore();
+    final host = await _boot(_host.copyWith(encryptionEnabled: false), shared);
+    await host.sync.start();
+    // Fire several overlapping restarts (settings listener + explicit).
+    await Future.wait([
+      host.sync.restart(),
+      host.sync.restart(),
+      host.c
+          .read(settingsProvider.notifier)
+          .update(
+            (x) => x.copyWith(deviceName: 'Renamed'),
+          ),
+      host.sync.restart(),
+    ]);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    expect(host.status.phase, SyncPhase.idle);
+    // Exactly one registration for this device and it reflects the rename.
+    expect(shared.devices.keys.where((k) => k == 'host-id').length, 1);
+    expect(shared.devices['host-id']!.name, 'Renamed');
+    // One heartbeat per membership check: a further sync does not duplicate.
+    await host.sync.syncNow();
+    expect(host.sync.knownDevices.length, 1);
+    await host.dispose();
+  });
 }

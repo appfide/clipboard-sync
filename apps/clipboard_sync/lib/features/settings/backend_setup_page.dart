@@ -30,6 +30,7 @@ class _BackendSetupPageState extends ConsumerState<BackendSetupPage> {
   ConnectionCheck? _conn;
   SchemaCheck? _schema;
   bool _busy = false;
+  bool _secure = true;
 
   @override
   void initState() {
@@ -78,6 +79,7 @@ class _BackendSetupPageState extends ConsumerState<BackendSetupPage> {
     if (previous != _backendId) {
       await ref.read(localStoreProvider).resetCursor();
     }
+    setState(() => _busy = true);
     await notifier.update(
       (s) => s.copyWith(
         backendId: _backendId,
@@ -85,7 +87,25 @@ class _BackendSetupPageState extends ConsumerState<BackendSetupPage> {
         onboarded: true,
       ),
     );
+    if (_secure && _backendId != 'memory') {
+      try {
+        await ref.read(syncControllerProvider.notifier).secureNewGroup();
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+            ..clearSnackBars()
+            ..showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Saved, but the group could not be secured yet: ${redactSecrets('$e')}. Use Settings → Devices → Secure this group once connected.',
+                ),
+              ),
+            );
+        }
+      }
+    }
     if (!mounted) return;
+    setState(() => _busy = false);
     if (widget.onboarding) {
       context.go('/');
     } else {
@@ -208,6 +228,21 @@ class _BackendSetupPageState extends ConsumerState<BackendSetupPage> {
                       : 'Missing: ${_schema!.missing.join(', ')}\n${_schema!.hint ?? ''}',
                 ),
               ],
+            ],
+            if (descriptor.id != 'memory') ...[
+              const SizedBox(height: 12),
+              Card(
+                child: SwitchRow(
+                  key: const ValueKey('secure-new-group'),
+                  icon: Icons.verified_user_rounded,
+                  title: 'Encrypt and sign this group',
+                  subtitle: _secure
+                      ? 'Recommended. A random passphrase is generated and this device becomes the admin; other devices receive the key through pairing. Turn off only to join a group by typing a passphrase.'
+                      : 'Off — clips are stored readable by the database and anyone with its credentials can pose as a device.',
+                  value: _secure,
+                  onChanged: (v) => setState(() => _secure = v),
+                ),
+              ),
             ],
             const SizedBox(height: 24),
             FilledButton.icon(

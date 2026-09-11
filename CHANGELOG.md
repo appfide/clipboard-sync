@@ -6,9 +6,12 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-09-11
+
 ### Added
-- **Device pairing**: Settings → Devices → *Add a device* shows a QR code (or a copyable code) plus an 8-digit PIN; the other device scans or pastes it under *Join another group* (also offered on the welcome screen). The code carries the database settings encrypted with the PIN (Argon2id → AES-256-GCM), is valid for 5 minutes and is never recorded in clipboard history. The host chooses the new device's role and access duration and can include the E2E passphrase (off by default).
-- **Device management**: list every device with presence, block / unblock, remove, forget, change role (*Send & receive*, *Send only*, *Receive only*) and set temporary access. A blocked, removed or expired device stops itself, deletes its credentials and passphrase, and tells the user. Enforcement is cooperative — see `docs/devices.md`.
+- **Secure by default**: choosing a database now encrypts the group with a random passphrase and signs it with an admin key (switch on the database screen); other devices receive the passphrase sealed through pairing. *Settings → Privacy → Show passphrase* reveals it for manual joins.
+- **Device pairing**: Settings → Devices → *Add a device* shows a QR code (or a copyable code) plus an 8-digit PIN; the other device scans or pastes it under *Join another group* (also offered on the welcome screen). The code carries the database settings encrypted with the PIN (Argon2id → AES-256-GCM), is valid for 5 minutes and is never recorded in clipboard history. The host chooses the new device's role and access duration and whether to share the passphrase (delivered sealed to the new device, never inside the code).
+- **Device management**: list every device with presence, block / unblock, remove, forget, change role (*Send & receive*, *Send only*, *Receive only*) and set temporary access. A blocked, removed or expired device stops itself, deletes its credentials, keys and passphrases, and tells the user. In a signed group these decisions are verified cryptographically — see `docs/devices.md`.
 - **Send to…** in the history menu pushes a clip to one device only (`target_device_id`).
 - **Capture filters**: *Pause capture* (also in the tray menu), *Skip password-manager content* (macOS concealed/transient pasteboard types, Windows `ExcludeClipboardContentFromMonitorProcessing`, Android 13+ `EXTRA_IS_SENSITIVE`; on by default) and *Skip keys and tokens* (credential-pattern heuristic).
 - **Signed groups**: every device has an Ed25519 / X25519 identity; every clip is signed and verified against the sender's admin-signed key; membership changes (status, role, expiry, keys, admin flag, key envelope) are signed by a group admin key with rollback protection. Holding the database credentials is no longer enough to pose as a device, lift a block, or take over the group. *Settings → Devices → Secure this group* upgrades existing groups; members confirm the admin fingerprint once.
@@ -39,5 +42,6 @@ All notable changes to this project are documented here. Format follows
 - Android app data excluded from cloud backup and device transfer.
 - Repository gates: gitleaks + pre-commit locally, full-history secret scan in CI, SHA-pinned actions, branch and tag rulesets.
 
-[Unreleased]: https://github.com/appfide/clipboard-sync/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/appfide/clipboard-sync/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/appfide/clipboard-sync/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/appfide/clipboard-sync/releases/tag/v0.1.0
