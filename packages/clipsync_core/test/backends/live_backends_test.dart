@@ -92,6 +92,9 @@ void main() {
         return b;
       },
       realtime: e.value.$2,
+      // Real websockets need a moment to subscribe and deliver.
+      realtimeWarmup: const Duration(seconds: 3),
+      realtimeSettle: const Duration(seconds: 6),
     );
   }
 }

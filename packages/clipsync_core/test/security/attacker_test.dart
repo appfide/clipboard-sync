@@ -430,6 +430,16 @@ void main() {
       await ex.stop();
     });
 
+    test('rotation skips a device whose old signed row was restored', () async {
+      final oldRow = atk.row('B');
+      await admin.engine!.blockDevice('B');
+      atk.setRow(oldRow); // rollback: valid signature, older version
+      final issued = await admin.engine!.rotatePassphrase('v2');
+      expect(issued, 1, reason: 'admin only');
+      expect(atk.row('B').keyVersion, 1);
+      expect(atk.row('B').keyEnvelope, isNot(contains('v2')));
+    });
+
     test('a device cannot forge the admin flag or its own role', () async {
       atk.setRow(atk.row('B').copyWith(admin: true, role: DeviceRole.full));
       await admin.engine!.refreshDevices();

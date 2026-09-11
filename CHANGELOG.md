@@ -6,6 +6,14 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-09-11
+
+### Security
+- Key rotation now issues envelopes only to the engine's rollback-aware trusted set. Before, a device whose *older* admin-signed row had been restored after a block (a rollback the engine already ignored for clips) could still receive the new passphrase. Found by running the attacker suite against a live Supabase project.
+
+### Changed
+- Live contract tests allow real websockets time to subscribe; new `live_attacker_test.dart` runs the signed-group threat model against a real database (`dart test -t live`).
+
 ## [0.2.0] - 2026-09-11
 
 ### Added
@@ -42,6 +50,7 @@ All notable changes to this project are documented here. Format follows
 - Android app data excluded from cloud backup and device transfer.
 - Repository gates: gitleaks + pre-commit locally, full-history secret scan in CI, SHA-pinned actions, branch and tag rulesets.
 
-[Unreleased]: https://github.com/appfide/clipboard-sync/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/appfide/clipboard-sync/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/appfide/clipboard-sync/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/appfide/clipboard-sync/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/appfide/clipboard-sync/releases/tag/v0.1.0
