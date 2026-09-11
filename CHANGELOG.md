@@ -11,7 +11,9 @@ All notable changes to this project are documented here. Format follows
 - **Device management**: list every device with presence, block / unblock, remove, forget, change role (*Send & receive*, *Send only*, *Receive only*) and set temporary access. A blocked, removed or expired device stops itself, deletes its credentials and passphrase, and tells the user. Enforcement is cooperative — see `docs/devices.md`.
 - **Send to…** in the history menu pushes a clip to one device only (`target_device_id`).
 - **Capture filters**: *Pause capture* (also in the tray menu), *Skip password-manager content* (macOS concealed/transient pasteboard types, Windows `ExcludeClipboardContentFromMonitorProcessing`, Android 13+ `EXTRA_IS_SENSITIVE`; on by default) and *Skip keys and tokens* (credential-pattern heuristic).
-- Device rows carry `status`, `role`, `expires_at`, `paired_by`, `app_version`; clips carry `target_device_id`. Supabase and PocketBase need the upgrade snippet in their guide; other backends need nothing.
+- **Signed groups**: every device has an Ed25519 / X25519 identity; every clip is signed and verified against the sender's admin-signed key; membership changes (status, role, expiry, keys, admin flag, key envelope) are signed by a group admin key with rollback protection. Holding the database credentials is no longer enough to pose as a device, lift a block, or take over the group. *Settings → Devices → Secure this group* upgrades existing groups; members confirm the admin fingerprint once.
+- **Encryption key rotation**: the admin issues a fresh random passphrase sealed to each verified device (X25519 + AES-GCM envelope covered by the admin signature). Removed or blocked devices cannot read clips sealed after the rotation; older history stays readable through a local keyring. Pairing delivers the passphrase the same way — it never travels inside the QR code.
+- Device rows carry `status`, `role`, `expires_at`, `paired_by`, `app_version`, `sign_pub`, `box_pub`, `admin`, `admin_pub`, `membership_version`, `membership_sig`, `key_version`, `key_envelope`; clips carry `target_device_id`, `key_version`, `sig`. Supabase and PocketBase need the upgrade snippet in their guide; other backends need nothing.
 
 ### Changed
 - Heartbeats write only presence fields, so a block set by another device is never overwritten.
@@ -32,6 +34,7 @@ All notable changes to this project are documented here. Format follows
 - Automated release builds: dmg, exe + zip, deb + AppImage, apk + aab, unsigned ipa, with `SHA256SUMS.txt`.
 
 ### Security
+- Threat model for multi-device groups documented in `docs/devices.md`, with an attacker test suite in `packages/clipsync_core/test/security`.
 - Credentials live in the OS credential store with a bounded, non-blocking fallback; secrets are never logged (all log lines are redacted).
 - Android app data excluded from cloud backup and device transfer.
 - Repository gates: gitleaks + pre-commit locally, full-history secret scan in CI, SHA-pinned actions, branch and tag rulesets.

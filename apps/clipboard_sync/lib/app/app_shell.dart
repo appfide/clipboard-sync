@@ -5,6 +5,7 @@ import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
 import 'package:clipboard_sync/ui/widgets/brand_mark.dart';
 import 'package:clipboard_sync/ui/widgets/status_pill.dart';
+import 'package:clipsync_core/clipsync_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -50,10 +51,15 @@ class AppShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen<RevocationNotice?>(revocationProvider, (prev, next) {
-      if (next == null) return;
-      unawaited(_showRevoked(context, ref, next));
-    });
+    ref
+      ..listen<RevocationNotice?>(revocationProvider, (prev, next) {
+        if (next == null) return;
+        unawaited(_showRevoked(context, ref, next));
+      })
+      ..listen<PendingTrust?>(pendingTrustProvider, (prev, next) {
+        if (next == null || prev?.adminPub == next.adminPub) return;
+        unawaited(_showTrust(context, ref, next));
+      });
     final location = GoRouterState.of(context).uri.path;
     final index = _indexOf(location);
     final wide =
@@ -162,4 +168,59 @@ Future<void> _showRevoked(
     ),
   );
   ref.read(revocationProvider.notifier).notice = null;
+}
+
+Future<void> _showTrust(
+  BuildContext context,
+  WidgetRef ref,
+  PendingTrust t,
+) async {
+  final theme = Theme.of(context);
+  final accept = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      key: const ValueKey('trust-dialog'),
+      icon: Icon(Icons.shield_rounded, color: theme.colorScheme.primary),
+      title: const Text('This group is now managed'),
+      content: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 440),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '${t.adminDeviceName.isEmpty ? 'A device' : t.adminDeviceName} secured this sync group with an admin key. '
+              'Open Settings → Devices on that device and compare the fingerprint before trusting it. '
+              'If it does not match, do not trust — someone with your database credentials may be trying to take over the group.',
+            ),
+            const SizedBox(height: 16),
+            Center(
+              child: SelectableText(
+                t.fingerprint,
+                key: const ValueKey('trust-fingerprint'),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                  letterSpacing: 2,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Not now'),
+        ),
+        FilledButton(
+          key: const ValueKey('trust-accept'),
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Fingerprint matches — trust'),
+        ),
+      ],
+    ),
+  );
+  if (accept ?? false) {
+    await ref.read(syncControllerProvider.notifier).trustAdmin(t.adminPub);
+  }
 }

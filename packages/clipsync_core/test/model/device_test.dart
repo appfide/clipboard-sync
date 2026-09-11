@@ -101,6 +101,8 @@ void main() {
       name: 'n',
       platform: 'p',
       lastSeen: now,
+      signPub: 's',
+      boxPub: 'b',
     ).toMap().keys.toSet();
     expect(keys, Device.presenceKeys.union(Device.membershipKeys));
   });

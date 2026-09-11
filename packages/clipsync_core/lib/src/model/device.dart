@@ -87,6 +87,14 @@ class Device {
     this.expiresAt,
     this.pairedBy,
     this.appVersion,
+    this.signPub,
+    this.boxPub,
+    this.admin = false,
+    this.adminPub,
+    this.membershipVersion = 0,
+    this.membershipSig,
+    this.keyVersion = 0,
+    this.keyEnvelope,
   });
 
   /// Parses the canonical map produced by [toMap]. Missing membership fields
@@ -103,6 +111,14 @@ class Device {
     expiresAt: ClipItem.parseTimestamp(map['expires_at']),
     pairedBy: _nullIfEmpty(map['paired_by']),
     appVersion: _nullIfEmpty(map['app_version']),
+    signPub: _nullIfEmpty(map['sign_pub']),
+    boxPub: _nullIfEmpty(map['box_pub']),
+    admin: map['admin'] == true,
+    adminPub: _nullIfEmpty(map['admin_pub']),
+    membershipVersion: _toInt(map['membership_version']),
+    membershipSig: _nullIfEmpty(map['membership_sig']),
+    keyVersion: _toInt(map['key_version']),
+    keyEnvelope: _nullIfEmpty(map['key_envelope']),
   );
 
   /// Stable UUID generated on first launch (or adopted from a pairing code)
@@ -133,6 +149,39 @@ class Device {
   /// App version the device last reported.
   final String? appVersion;
 
+  /// Ed25519 public key the device signs clips with, base64. `null` for
+  /// devices running app versions before 0.2.
+  final String? signPub;
+
+  /// X25519 public key passphrase envelopes are sealed to, base64.
+  final String? boxPub;
+
+  /// Whether this device holds the group's admin key.
+  final bool admin;
+
+  /// Admin public key that signed this row's membership, base64.
+  final String? adminPub;
+
+  /// Monotonic counter bumped on every membership change; lets devices
+  /// reject a rolled-back (older but validly signed) row.
+  final int membershipVersion;
+
+  /// Admin signature over the membership fields (see
+  /// `ClipSigning.membershipBytes`), base64.
+  final String? membershipSig;
+
+  /// Passphrase version delivered in [keyEnvelope]; 0 = none.
+  final int keyVersion;
+
+  /// Sealed passphrase for this device (`KeyEnvelope.encode`), or `null`.
+  final String? keyEnvelope;
+
+  /// Whether the row carries an admin signature.
+  bool get isSigned => membershipSig != null && adminPub != null;
+
+  /// Whether the device has published signing keys.
+  bool get hasKeys => signPub != null && boxPub != null;
+
   /// Whether [expiresAt] has passed.
   bool isExpired(DateTime now) {
     final e = expiresAt;
@@ -152,12 +201,17 @@ class Device {
   bool get isPending => lastSeen.millisecondsSinceEpoch == 0;
 
   /// Keys of the presence fields (everything a heartbeat may write).
+  /// `sign_pub` / `box_pub` are included only when the device publishes
+  /// them itself (legacy groups without an admin); in signed groups they
+  /// are covered by the admin signature and a mismatch invalidates it.
   static const Set<String> presenceKeys = {
     'id',
     'name',
     'platform',
     'last_seen',
     'app_version',
+    'sign_pub',
+    'box_pub',
   };
 
   /// Keys of the membership fields (written only by `updateDevice`).
@@ -166,6 +220,12 @@ class Device {
     'role',
     'expires_at',
     'paired_by',
+    'admin',
+    'admin_pub',
+    'membership_version',
+    'membership_sig',
+    'key_version',
+    'key_envelope',
   };
 
   /// Canonical document shape shared by all backends.
@@ -175,16 +235,26 @@ class Device {
     'role': role.wire,
     'expires_at': expiresAt?.toUtc().toIso8601String(),
     'paired_by': pairedBy,
+    'admin': admin,
+    'admin_pub': adminPub,
+    'membership_version': membershipVersion,
+    'membership_sig': membershipSig,
+    'key_version': keyVersion,
+    'key_envelope': keyEnvelope,
   };
 
   /// Only the presence fields — what a heartbeat is allowed to write.
-  Map<String, Object?> presenceMap() => <String, Object?>{
-    'id': id,
-    'name': name,
-    'platform': platform,
-    'last_seen': lastSeen.toUtc().toIso8601String(),
-    'app_version': appVersion,
-  };
+  /// Public keys are included only when set and [includeKeys] is true.
+  Map<String, Object?> presenceMap({bool includeKeys = true}) =>
+      <String, Object?>{
+        'id': id,
+        'name': name,
+        'platform': platform,
+        'last_seen': lastSeen.toUtc().toIso8601String(),
+        'app_version': appVersion,
+        if (includeKeys && signPub != null) 'sign_pub': signPub,
+        if (includeKeys && boxPub != null) 'box_pub': boxPub,
+      };
 
   /// Copy with fields replaced. `clearExpiresAt` removes the expiry.
   Device copyWith({
@@ -196,7 +266,17 @@ class Device {
     DateTime? expiresAt,
     String? pairedBy,
     String? appVersion,
+    String? signPub,
+    String? boxPub,
+    bool? admin,
+    String? adminPub,
+    int? membershipVersion,
+    String? membershipSig,
+    int? keyVersion,
+    String? keyEnvelope,
     bool clearExpiresAt = false,
+    bool clearSignature = false,
+    bool clearEnvelope = false,
   }) => Device(
     id: id,
     name: name ?? this.name,
@@ -207,6 +287,16 @@ class Device {
     expiresAt: clearExpiresAt ? null : (expiresAt ?? this.expiresAt),
     pairedBy: pairedBy ?? this.pairedBy,
     appVersion: appVersion ?? this.appVersion,
+    signPub: signPub ?? this.signPub,
+    boxPub: boxPub ?? this.boxPub,
+    admin: admin ?? this.admin,
+    adminPub: clearSignature ? null : (adminPub ?? this.adminPub),
+    membershipVersion: membershipVersion ?? this.membershipVersion,
+    membershipSig: clearSignature
+        ? null
+        : (membershipSig ?? this.membershipSig),
+    keyVersion: clearEnvelope ? 0 : (keyVersion ?? this.keyVersion),
+    keyEnvelope: clearEnvelope ? null : (keyEnvelope ?? this.keyEnvelope),
   );
 
   /// Returns a copy with presence fields taken from [presence] and
@@ -217,10 +307,20 @@ class Device {
     platform: presence.platform,
     lastSeen: presence.lastSeen,
     appVersion: presence.appVersion,
+    signPub: presence.signPub,
+    boxPub: presence.boxPub,
   );
 
   static String? _nullIfEmpty(Object? v) =>
       v is String && v.isNotEmpty ? v : null;
+
+  static int _toInt(Object? v) => switch (v) {
+    null => 0,
+    final int i => i,
+    final num n => n.toInt(),
+    final String s => int.tryParse(s) ?? 0,
+    _ => 0,
+  };
 
   @override
   bool operator ==(Object other) => other is Device && other.id == id;

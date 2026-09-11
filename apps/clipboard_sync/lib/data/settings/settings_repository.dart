@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:clipboard_sync/core/platform_info.dart';
 import 'package:clipboard_sync/data/settings/app_settings.dart';
 import 'package:clipboard_sync/data/settings/secret_store.dart';
@@ -19,6 +21,11 @@ class SettingsRepository {
   static const _kDeviceId = 'device_id';
   static const _kPassphrase = 'e2e_passphrase';
   static const _kRegisteredScope = 'registered_scope';
+  static const _kDeviceKeys = 'device_keys';
+  static const _kKeyring = 'e2e_keyring';
+  static String _kAdminKey(String scope) => 'admin_key.$scope';
+  static String _kAdminPub(String scope) => 'admin_pub.$scope';
+  static String _kSeenVersions(String scope) => 'seen_versions.$scope';
   static String _kSecret(String backendId, String key) =>
       'backend.$backendId.$key';
   static String _kPlain(String backendId, String key) =>
@@ -144,10 +151,91 @@ class SettingsRepository {
       ? _prefs.remove(_kRegisteredScope)
       : _prefs.setString(_kRegisteredScope, scope);
 
-  /// E2E passphrase from the keychain.
-  Future<String?> loadPassphrase() => _secure.read(_kPassphrase);
+  // --- Encryption keyring ---------------------------------------------------
 
-  /// Stores or clears the passphrase.
-  Future<void> savePassphrase(String? passphrase) =>
-      _secure.write(_kPassphrase, passphrase);
+  /// Every passphrase version this device holds, `{version: passphrase}`.
+  /// Migrates a pre-0.2 single passphrase to version 1.
+  Future<Map<int, String>> loadKeyring() async {
+    final raw = await _secure.read(_kKeyring);
+    if (raw != null && raw.isNotEmpty) {
+      final m = jsonDecode(raw) as Map<String, Object?>;
+      return {for (final e in m.entries) int.parse(e.key): e.value! as String};
+    }
+    final legacy = await _secure.read(_kPassphrase);
+    if (legacy != null && legacy.isNotEmpty) {
+      final ring = {1: legacy};
+      await saveKeyring(ring);
+      await _secure.delete(_kPassphrase);
+      return ring;
+    }
+    return {};
+  }
+
+  /// Persists the keyring (empty map clears it).
+  Future<void> saveKeyring(Map<int, String> ring) => _secure.write(
+    _kKeyring,
+    ring.isEmpty
+        ? null
+        : jsonEncode({for (final e in ring.entries) '${e.key}': e.value}),
+  );
+
+  /// Newest passphrase, or `null`.
+  Future<String?> loadPassphrase() async {
+    final ring = await loadKeyring();
+    if (ring.isEmpty) return null;
+    return ring[ring.keys.reduce((a, b) => a > b ? a : b)];
+  }
+
+  /// Replaces the keyring with a single, manually entered passphrase
+  /// (`null` clears everything).
+  Future<void> savePassphrase(String? passphrase) => saveKeyring(
+    passphrase == null || passphrase.isEmpty ? {} : {1: passphrase},
+  );
+
+  // --- Device identity and group trust --------------------------------------
+
+  /// This device's signing / box keys (`DeviceKeys.encode`), or `null` on
+  /// first run.
+  Future<String?> loadDeviceKeys() => _secure.read(_kDeviceKeys);
+
+  /// Stores the device keys.
+  Future<void> saveDeviceKeys(String encoded) =>
+      _secure.write(_kDeviceKeys, encoded);
+
+  /// Admin key for [scope] (`AdminKey.encode`) when this device manages
+  /// that group.
+  Future<String?> loadAdminKey(String scope) => _secure.read(_kAdminKey(scope));
+
+  /// Stores or clears (`null`) the admin key for [scope].
+  Future<void> saveAdminKey(String scope, String? encoded) =>
+      _secure.write(_kAdminKey(scope), encoded);
+
+  /// Pinned admin public key for [scope], or `null` (legacy group).
+  String? loadTrustedAdminPub(String scope) =>
+      _prefs.getString(_kAdminPub(scope));
+
+  /// Pins or clears (`null`) the admin public key for [scope].
+  Future<void> saveTrustedAdminPub(String scope, String? pub) => pub == null
+      ? _prefs.remove(_kAdminPub(scope))
+      : _prefs.setString(_kAdminPub(scope), pub);
+
+  /// Highest membership version seen per device in [scope] (rollback
+  /// detection across restarts).
+  Map<String, int> loadSeenVersions(String scope) {
+    final raw = _prefs.getString(_kSeenVersions(scope));
+    if (raw == null) return {};
+    final m = jsonDecode(raw) as Map<String, Object?>;
+    return {for (final e in m.entries) e.key: e.value! as int};
+  }
+
+  /// Persists seen membership versions for [scope].
+  Future<void> saveSeenVersions(String scope, Map<String, int> seen) =>
+      _prefs.setString(_kSeenVersions(scope), jsonEncode(seen));
+
+  /// Forgets everything tied to [scope]: admin key, pinned admin, versions.
+  Future<void> clearGroupTrust(String scope) async {
+    await saveAdminKey(scope, null);
+    await saveTrustedAdminPub(scope, null);
+    await _prefs.remove(_kSeenVersions(scope));
+  }
 }

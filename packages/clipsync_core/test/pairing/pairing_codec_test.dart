@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:clipsync_core/clipsync_core.dart';
 import 'package:test/test.dart';
 
@@ -16,7 +18,11 @@ void main() {
     validUntil: issued.add(const Duration(minutes: 5)),
     hostDeviceId: 'host',
     hostDeviceName: 'MacBook',
-    passphrase: 'correct horse',
+    deviceKeys: base64Encode(List<int>.filled(64, 3)),
+    adminPub: base64Encode(List<int>.filled(32, 4)),
+    adminKey: base64Encode(List<int>.filled(32, 5)),
+    encryption: true,
+    passphraseDelivered: true,
     role: DeviceRole.sendOnly,
     expiresAt: issued.add(const Duration(days: 1)),
   );
@@ -43,7 +49,13 @@ void main() {
     expect(back.backendId, 'supabase');
     expect(back.values, payload.values);
     expect(back.deviceId, payload.deviceId);
-    expect(back.passphrase, 'correct horse');
+    expect(back.deviceKeys, payload.deviceKeys);
+    expect(back.adminPub, payload.adminPub);
+    expect(back.adminKey, payload.adminKey);
+    expect(back.encryption, isTrue);
+    expect(back.passphraseDelivered, isTrue);
+    expect(back.needsPassphrase, isFalse);
+    expect(back.isSignedGroup, isTrue);
     expect(back.role, DeviceRole.sendOnly);
     expect(back.expiresAt, payload.expiresAt);
     expect(back.hostDeviceName, 'MacBook');

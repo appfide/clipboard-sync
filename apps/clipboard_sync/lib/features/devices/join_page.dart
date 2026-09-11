@@ -280,6 +280,16 @@ class _JoinPageState extends ConsumerState<JoinPage> {
                     registry.descriptor(payload.backendId)?.displayName ??
                         payload.backendId,
                   ),
+                  _Row(
+                    payload.isSignedGroup
+                        ? Icons.verified_user_rounded
+                        : Icons.gpp_maybe_rounded,
+                    'Group security',
+                    payload.isSignedGroup
+                        ? 'Signed · admin key ${keyFingerprint(payload.adminPub!)}'
+                              '${payload.adminKey != null ? ' · this device becomes an admin' : ''}'
+                        : 'Not signed (legacy) — anyone with the credentials can pose as a device',
+                  ),
                   _Row(Icons.swap_vert_rounded, 'Role', payload.role.label),
                   _Row(
                     Icons.schedule_rounded,
@@ -296,8 +306,8 @@ class _JoinPageState extends ConsumerState<JoinPage> {
                         : Icons.lock_open_rounded,
                     'Encryption',
                     payload.encryption
-                        ? (payload.passphrase != null
-                              ? 'On · passphrase included'
+                        ? (payload.passphraseDelivered
+                              ? 'On · key delivered securely to this device'
                               : 'On · passphrase needed')
                         : 'Off',
                   ),

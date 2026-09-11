@@ -131,14 +131,50 @@ class _DevicesPageState extends ConsumerState<DevicesPage> {
     }
   }
 
+  Future<void> _secure() async {
+    final ok = await confirm(
+      context,
+      title: 'Secure this group?',
+      message:
+          'This device becomes the group admin: it generates a signing key, signs every current device, and from now on only it can add, block or remove devices. Other devices will ask you to confirm the key fingerprint once. Keep this device — losing it means setting the group up again.',
+      action: 'Secure',
+    );
+    if (!ok) return;
+    await _run(
+      () => ref.read(syncControllerProvider.notifier).secureGroup(),
+      'Group secured — check the fingerprint on your other devices',
+    );
+  }
+
+  Future<void> _rotate() async {
+    final ok = await confirm(
+      context,
+      title: 'Rotate the encryption key?',
+      message:
+          'A new random passphrase is issued to every verified, active device. Devices that were blocked or removed cannot read anything copied after this point. History already synced stays readable on the devices that had the old key.',
+      action: 'Rotate',
+    );
+    if (!ok) return;
+    await _run(() async {
+      final v = await ref
+          .read(syncControllerProvider.notifier)
+          .rotatePassphrase();
+      _toast('Encryption key rotated to version $v');
+    }, '');
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
     final devices = ref.watch(deviceListProvider).value ?? const <Device>[];
     final status = ref.watch(syncControllerProvider);
+    final controller = ref.read(syncControllerProvider.notifier);
     final theme = Theme.of(context);
     final c = context.colors;
     final connected = s.syncsRemotely && status.phase != SyncPhase.stopped;
+    final signed = status.signedGroup;
+    final canEdit = connected && controller.canEditMembership;
+    final trusted = controller.trustedDeviceIds;
 
     final sorted = [...devices]
       ..sort((a, b) {
@@ -203,7 +239,7 @@ class _DevicesPageState extends ConsumerState<DevicesPage> {
                       children: [
                         FilledButton.icon(
                           key: const ValueKey('add-device'),
-                          onPressed: connected
+                          onPressed: canEdit
                               ? () => context.push('/settings/devices/pair')
                               : null,
                           icon: const Icon(Icons.qr_code_2_rounded, size: 18),
@@ -232,6 +268,21 @@ class _DevicesPageState extends ConsumerState<DevicesPage> {
                           ),
                         ),
                       ),
+                    _SecurityCard(
+                      signed: signed,
+                      isAdmin: controller.isAdmin,
+                      selfVerified: status.selfVerified,
+                      fingerprint: controller.adminFingerprint,
+                      adminName: devices
+                          .where((d) => d.admin)
+                          .map((d) => d.name)
+                          .firstOrNull,
+                      encryption: s.encryptionEnabled,
+                      keyVersion: status.keyVersion,
+                      busy: _busy || !connected,
+                      onSecure: _secure,
+                      onRotate: _rotate,
+                    ),
                     SectionCard(
                       title: 'In this group',
                       subtitle: sorted.isEmpty
@@ -252,13 +303,18 @@ class _DevicesPageState extends ConsumerState<DevicesPage> {
                                 DeviceTile(
                                   device: d,
                                   isSelf: d.id == s.deviceId,
-                                  onAction: d.id == s.deviceId || !connected
+                                  verified: signed
+                                      ? trusted.contains(d.id) ||
+                                            (d.id == s.deviceId &&
+                                                status.selfVerified)
+                                      : null,
+                                  onAction: d.id == s.deviceId || !canEdit
                                       ? null
                                       : (a) => _onAction(d, a),
                                 ),
                             ],
                     ),
-                    const EnforcementNote(),
+                    EnforcementNote(signed: signed),
                     const SizedBox(height: 12),
                     Text(
                       'Rename this device under Settings → Devices → This device.',
@@ -270,6 +326,96 @@ class _DevicesPageState extends ConsumerState<DevicesPage> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+class _SecurityCard extends StatelessWidget {
+  const _SecurityCard({
+    required this.signed,
+    required this.isAdmin,
+    required this.selfVerified,
+    required this.fingerprint,
+    required this.adminName,
+    required this.encryption,
+    required this.keyVersion,
+    required this.busy,
+    required this.onSecure,
+    required this.onRotate,
+  });
+  final bool signed;
+  final bool isAdmin;
+  final bool selfVerified;
+  final String? fingerprint;
+  final String? adminName;
+  final bool encryption;
+  final int keyVersion;
+  final bool busy;
+  final VoidCallback onSecure;
+  final VoidCallback onRotate;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final c = context.colors;
+    final tint = !signed
+        ? c.warning
+        : (selfVerified ? c.success : scheme.error);
+    final title = !signed
+        ? 'Not secured'
+        : (selfVerified ? 'Secured' : 'Secured — this device is unverified');
+    final detail = !signed
+        ? 'Membership is cooperative: anyone with the database credentials can pose as a device.'
+        : selfVerified
+        ? 'Managed by ${adminName ?? 'the admin device'} · key ${fingerprint ?? ''}'
+              '${isAdmin ? ' · this device is an admin' : ''}'
+              '${encryption ? ' · encryption key v$keyVersion' : ''}'
+        : 'Other devices ignore this device’s clips until the admin re-adds it with a new pairing code.';
+    return SectionCard(
+      title: 'Group security',
+      children: [
+        ListTile(
+          key: const ValueKey('security-card'),
+          leading: LeadingIcon(
+            icon: !signed
+                ? Icons.gpp_maybe_rounded
+                : (selfVerified
+                      ? Icons.verified_user_rounded
+                      : Icons.gpp_bad_rounded),
+            color: tint,
+          ),
+          title: Text(title),
+          subtitle: Text(detail),
+          isThreeLine: true,
+        ),
+        if (!signed)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                key: const ValueKey('secure-group'),
+                onPressed: busy ? null : onSecure,
+                icon: const Icon(Icons.shield_rounded, size: 18),
+                label: const Text('Secure this group'),
+              ),
+            ),
+          ),
+        if (signed && isAdmin && encryption)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+            child: Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                key: const ValueKey('rotate-key'),
+                onPressed: busy ? null : onRotate,
+                icon: const Icon(Icons.autorenew_rounded, size: 18),
+                label: const Text('Rotate encryption key'),
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

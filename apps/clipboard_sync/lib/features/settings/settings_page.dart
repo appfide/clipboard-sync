@@ -367,6 +367,19 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
   Future<void> _toggle(bool enable) async {
     final repo = ref.read(settingsRepositoryProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    final controller = ref.read(syncControllerProvider.notifier);
+    if (enable && controller.isSignedGroup && !controller.isAdmin) {
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Only the admin device can change the passphrase of a secured group; it can rotate the key from Devices.',
+            ),
+          ),
+        );
+      return;
+    }
     if (!enable) {
       await notifier.update((x) => x.copyWith(encryptionEnabled: false));
       await repo.savePassphrase(null);
@@ -390,6 +403,7 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
   @override
   Widget build(BuildContext context) {
     final s = ref.watch(settingsProvider);
+    final status = ref.watch(syncControllerProvider);
     final c = context.colors;
     return Column(
       children: [
@@ -399,7 +413,7 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
               : Icons.lock_open_rounded,
           title: 'End-to-end encryption',
           subtitle: s.encryptionEnabled
-              ? 'On · key fingerprint ${_fingerprint ?? '…'} — must match on every device'
+              ? 'On · key v${status.keyVersion} · fingerprint ${_fingerprint ?? '…'} — must match on every device'
               : 'Off · the database can read your clipboard',
           value: s.encryptionEnabled,
           onChanged: _toggle,

@@ -204,22 +204,15 @@ class MongoDbBackend implements SyncBackend {
       final db = await _open();
       // $set presence; $setOnInsert membership defaults so an existing
       // row's status / role / expiry survive the heartbeat.
+      final presence = device.presenceMap()
+        ..remove('id')
+        ..['last_seen'] = device.lastSeen.toUtc();
+      final membership = <String, Object?>{
+        for (final k in Device.membershipKeys) k: device.toMap()[k],
+      }..['expires_at'] = device.expiresAt?.toUtc();
       await db.collection(_devicesCollection).updateOne(
         where.eq('_id', device.id),
-        {
-          r'$set': {
-            'name': device.name,
-            'platform': device.platform,
-            'last_seen': device.lastSeen.toUtc(),
-            'app_version': device.appVersion,
-          },
-          r'$setOnInsert': {
-            'status': device.status.wire,
-            'role': device.role.wire,
-            'expires_at': device.expiresAt?.toUtc(),
-            'paired_by': device.pairedBy,
-          },
-        },
+        {r'$set': presence, r'$setOnInsert': membership},
         upsert: true,
       );
     } catch (e) {

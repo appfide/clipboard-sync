@@ -9,6 +9,7 @@ import 'package:clipboard_sync/app/router.dart';
 import 'package:clipboard_sync/data/local/database.dart';
 import 'package:clipboard_sync/data/local/local_store.dart';
 import 'package:clipboard_sync/data/settings/app_settings.dart';
+import 'package:clipboard_sync/data/settings/secret_store.dart';
 import 'package:clipboard_sync/features/sync/sync_controller.dart';
 import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
@@ -27,7 +28,27 @@ class _LiveSync extends SyncController {
     phase: SyncPhase.idle,
     realtime: true,
     lastSyncAt: DateTime.now().toUtc(),
+    signedGroup: true,
+    keyVersion: 2,
   );
+
+  @override
+  bool get isAdmin => true;
+
+  @override
+  bool get isSignedGroup => true;
+
+  @override
+  bool get canEditMembership => true;
+
+  @override
+  String? get adminFingerprint => '7c3e 91a4';
+
+  @override
+  Set<String> get trustedDeviceIds => _devices
+      .where((d) => d.status == DeviceStatus.active && !d.isPending)
+      .map((d) => d.id)
+      .toSet();
 }
 
 Future<void> _loadFonts() async {
@@ -84,6 +105,7 @@ Device _device(
   DeviceRole role = DeviceRole.full,
   Duration? expiresIn,
   bool pending = false,
+  bool admin = false,
 }) => Device(
   id: id,
   name: name,
@@ -95,10 +117,17 @@ Device _device(
   role: role,
   expiresAt: expiresIn == null ? null : DateTime.now().toUtc().add(expiresIn),
   appVersion: '0.2.0',
+  admin: admin,
 );
 
 final List<Device> _devices = [
-  _device('macbook-pro', 'MacBook Pro', 'macos', ago: Duration.zero),
+  _device(
+    'macbook-pro',
+    'MacBook Pro',
+    'macos',
+    ago: Duration.zero,
+    admin: true,
+  ),
   _device('pixel-9', 'Pixel 9', 'android', ago: const Duration(minutes: 1)),
   _device(
     'work-pc',
@@ -259,6 +288,9 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 50));
+    // Credential-store reads are bounded by a 10 s timeout; let it elapse
+    // under the fake clock so no timer outlives the test.
+    await tester.pump(SecretStore.timeout + const Duration(seconds: 1));
     await tester.runAsync(db.close);
   }
 

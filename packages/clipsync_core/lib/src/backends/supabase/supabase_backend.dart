@@ -137,13 +137,21 @@ class SupabaseBackend implements SyncBackend {
 
   /// Columns added after 0.1.0; checked so an old schema fails loudly
   /// instead of silently dropping device management data.
-  static const _itemColumns = ['target_device_id'];
+  static const _itemColumns = ['target_device_id', 'key_version', 'sig'];
   static const _deviceColumns = [
     'status',
     'role',
     'expires_at',
     'paired_by',
     'app_version',
+    'sign_pub',
+    'box_pub',
+    'admin',
+    'admin_pub',
+    'membership_version',
+    'membership_sig',
+    'key_version',
+    'key_envelope',
   ];
 
   @override

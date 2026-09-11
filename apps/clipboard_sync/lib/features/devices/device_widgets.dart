@@ -81,6 +81,7 @@ class DeviceTile extends StatelessWidget {
   const DeviceTile({
     required this.device,
     required this.isSelf,
+    this.verified,
     this.onAction,
     super.key,
   });
@@ -90,6 +91,10 @@ class DeviceTile extends StatelessWidget {
 
   /// Whether this row is the current device.
   final bool isSelf;
+
+  /// In a signed group: whether the admin signature verifies. `null` in a
+  /// legacy group (no chip shown).
+  final bool? verified;
 
   /// Menu handler; `null` hides the menu.
   final void Function(String action)? onAction;
@@ -112,6 +117,20 @@ class DeviceTile extends StatelessWidget {
     final chips = <Widget>[
       if (isSelf)
         Chip2('This device', color: scheme.primary, icon: Icons.star_rounded),
+      if (d.admin)
+        Chip2('Admin', color: scheme.primary, icon: Icons.shield_rounded),
+      if (verified == false)
+        Chip2(
+          'Unverified',
+          color: scheme.error,
+          icon: Icons.gpp_maybe_rounded,
+        ),
+      if (verified ?? false)
+        Chip2(
+          'Verified',
+          color: c.success,
+          icon: Icons.verified_user_rounded,
+        ),
       if (d.isPending)
         Chip2(
           'Invited · waiting',
@@ -233,10 +252,13 @@ class _MenuRow extends StatelessWidget {
   );
 }
 
-/// Explains that enforcement is cooperative, with a link to the docs.
+/// Explains what the group's security mode means, with a link to the docs.
 class EnforcementNote extends StatelessWidget {
   /// Creates the note.
-  const EnforcementNote({super.key});
+  const EnforcementNote({required this.signed, super.key});
+
+  /// Whether the group is signed (admin key pinned).
+  final bool signed;
 
   /// Docs page.
   static final Uri docsUrl = Uri.parse(
@@ -264,7 +286,9 @@ class EnforcementNote extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Every device holds the same database credentials. Block, remove and expiry are honoured by the app on each device — the database itself does not enforce them.',
+                  signed
+                      ? 'Every clip is signed by its device and every membership change by the admin key. Devices ignore clips and changes that do not verify, so holding the database credentials alone is not enough to pose as a device or lift a block. Reading the database is still governed by its own login and by end-to-end encryption.'
+                      : 'Every device holds the same database credentials and nothing is signed: anyone with those credentials can pose as any device, undo a block, or read unencrypted clips. Secure this group to fix that.',
                   style: theme.textTheme.bodySmall,
                 ),
                 TextButton(

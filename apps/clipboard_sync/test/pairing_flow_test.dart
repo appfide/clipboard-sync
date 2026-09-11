@@ -273,4 +273,88 @@ void main() {
 
     await tester.runAsync(node.dispose);
   });
+
+  group('signed group', _signedGroupTests);
+}
+
+// ---------------------------------------------------------------------------
+// Signed group: admin key, sealed passphrase delivery, rotation, forgery.
+// ---------------------------------------------------------------------------
+
+void _signedGroupTests() {
+  testWidgets('secure group from the UI, chips and admin gating', (
+    tester,
+  ) async {
+    final shared = MemoryStore();
+    final host = await _boot(tester, _hostSettings, shared);
+    expect(host.sync.isSignedGroup, isFalse);
+
+    await tester.pumpWidget(_app(host, '/settings/devices'));
+    await _settle(tester, until: find.byKey(const ValueKey('secure-group')));
+    expect(find.text('Not secured'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('secure-group')));
+    await _settle(tester, until: find.widgetWithText(FilledButton, 'Secure'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Secure'));
+    await _settle(tester, until: find.text('Secured'));
+    expect(host.sync.isSignedGroup, isTrue);
+    expect(host.sync.isAdmin, isTrue);
+    expect(host.container.read(syncControllerProvider).selfVerified, isTrue);
+    expect(shared.devices['host-id']!.admin, isTrue);
+    expect(shared.devices['host-id']!.isSigned, isTrue);
+    expect(find.text('Verified'), findsOneWidget);
+    expect(find.text('Admin'), findsOneWidget);
+    // No encryption → no rotate button.
+    expect(find.byKey(const ValueKey('rotate-key')), findsNothing);
+
+    // A rogue row written straight into the database shows as unverified.
+    shared.devices['rogue'] = Device(
+      id: 'rogue',
+      name: 'Rogue',
+      platform: 'linux',
+      lastSeen: DateTime.now().toUtc(),
+    );
+    await tester.runAsync(() => host.sync.refreshDevices());
+    await _settle(tester, until: find.byKey(const ValueKey('device-rogue')));
+    expect(find.text('Unverified'), findsOneWidget);
+    expect(host.sync.trustedDeviceIds, isNot(contains('rogue')));
+
+    await tester.runAsync(host.dispose);
+  });
+
+  testWidgets('legacy member sees the trust prompt and pins the admin key', (
+    tester,
+  ) async {
+    final shared = MemoryStore();
+    final host = await _boot(tester, _hostSettings, shared);
+    final member = await _boot(
+      tester,
+      _hostSettings.copyWith(deviceId: 'member-id', deviceName: 'Member'),
+      shared,
+    );
+    await tester.pumpWidget(_app(member, '/settings/devices'));
+    await _settle(tester);
+    expect(find.text('Not secured'), findsOneWidget);
+
+    await tester.runAsync(host.sync.secureGroup);
+    await tester.runAsync(() => member.sync.refreshDevices());
+    await _settle(tester, until: find.byKey(const ValueKey('trust-dialog')));
+    expect(
+      find.text(host.sync.adminFingerprint!),
+      findsOneWidget,
+      reason: 'fingerprint shown for comparison',
+    );
+    await tester.tap(find.byKey(const ValueKey('trust-accept')));
+    await _settle(tester, until: find.text('Secured'));
+    expect(member.sync.isSignedGroup, isTrue);
+    expect(member.sync.adminFingerprint, host.sync.adminFingerprint);
+    expect(member.container.read(syncControllerProvider).selfVerified, isTrue);
+    expect(member.sync.canEditMembership, isFalse);
+    expect(find.byKey(const ValueKey('secure-group')), findsNothing);
+    expect(find.byKey(const ValueKey('rotate-key')), findsNothing);
+
+    await tester.runAsync(() async {
+      await member.dispose();
+      await host.dispose();
+    });
+  });
 }

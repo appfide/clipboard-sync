@@ -132,8 +132,8 @@ class PocketBaseBackend implements SyncBackend {
     try {
       await _ensureAuth();
       for (final (c, field) in [
-        (_collection, 'target_device_id'),
-        (_devicesCollection, 'status'),
+        (_collection, 'sig'),
+        (_devicesCollection, 'membership_sig'),
       ]) {
         try {
           final page = await _c
@@ -190,6 +190,7 @@ class PocketBaseBackend implements SyncBackend {
             : await col.update(existing.id, body: _body(item));
         if (!_itemSchemaChecked) {
           _assertField(rec, 'target_device_id', _collection);
+          _assertField(rec, 'sig', _collection);
           _itemSchemaChecked = true;
         }
       }
@@ -346,6 +347,7 @@ class PocketBaseBackend implements SyncBackend {
           ? await col.create(body: body)
           : await col.update(existing.id, body: body);
       _assertField(rec, 'status', _devicesCollection);
+      _assertField(rec, 'membership_sig', _devicesCollection);
     } catch (e) {
       throw _wrap(e);
     }
@@ -384,8 +386,16 @@ class PocketBaseBackend implements SyncBackend {
                 'expires_at',
                 'paired_by',
                 'app_version',
+                'sign_pub',
+                'box_pub',
+                'admin_pub',
+                'membership_sig',
+                'key_envelope',
               ])
                 k: _nullIfEmpty(r.get<Object?>(k)),
+              'admin': r.get<Object?>('admin') == true,
+              'membership_version': r.get<Object?>('membership_version'),
+              'key_version': r.get<Object?>('key_version'),
             }),
           )
           .toList();
@@ -441,10 +451,12 @@ class PocketBaseBackend implements SyncBackend {
         'updated_at',
         'deleted_at',
         'target_device_id',
+        'sig',
       ])
         k: _nullIfEmpty(r.get<Object?>(k)),
       'id': r.getStringValue('clip_id'),
       'size_bytes': r.get<Object?>('size_bytes'),
+      'key_version': r.get<Object?>('key_version'),
       'encrypted': r.get<Object?>('encrypted') == true,
     };
     return ClipItem.fromMap(m);

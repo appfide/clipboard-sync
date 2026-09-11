@@ -12,7 +12,8 @@
 │ packages/clipsync_core (pure Dart)                          │
 │  model/      ClipItem · Device (status/role/expiry)         │
 │  sync/       SyncEngine (push · pull · membership check)    │
-│  crypto/     ClipCipher (Argon2id → AES-256-GCM, AAD = id)  │
+│  crypto/     ClipCipher · DeviceKeys · ClipSigning ·        │
+│              KeyEnvelope · CipherRing                        │
 │  pairing/    PairingPayload · PairingCodec (PIN-sealed)     │
 │  backend/    SyncBackend · BackendDescriptor · ConfigField  │
 │  backends/   supabase · pocketbase · couchdb · firestore ·  │
@@ -40,11 +41,16 @@
 5. **Delete** — tombstone (`deleted_at`, content blanked). Rows are physically
    removed only by retention (`purgeBefore`).
 6. **Membership** — every minute (and before a sync older than that) the
-   engine lists `devices`, refreshes its own presence row, adopts its role,
-   ignores clips from blocked / expired devices and items addressed to
-   another device (`target_device_id`). If its own row says blocked, removed
-   or expired, it stops with `SyncPhase.revoked` and the app wipes the
-   credentials. Details and limits: [devices.md](devices.md).
+   engine lists `devices`, refreshes its own presence row, verifies each
+   row's admin signature and version, adopts its role and any key envelope
+   addressed to it, and ignores clips from untrusted / blocked / expired
+   devices and items addressed to another device. If its own signed row
+   says blocked, removed or expired, it stops with `SyncPhase.revoked` and
+   the app wipes credentials, passphrases and trust state.
+7. **Signing** — every pushed item is sealed (newest `CipherRing` key) and
+   then signed with the device's Ed25519 key; every pulled item is verified
+   against the sender's admin-signed public key before decryption. Threat
+   model and limits: [devices.md](devices.md#how-access-is-enforced--read-this).
 
 ## Adding a backend
 
@@ -59,9 +65,11 @@ patterns to `.gitleaks.toml`.
   (Argon2id 64 MiB → AES-256-GCM), valid for 5 minutes, never recorded in
   history. Access decisions (role, expiry) are written by the host before the
   code is shown.
-- Device access control is cooperative — enforced by the app, not by the
-  database — because every device holds the same credentials. See
-  [devices.md](devices.md#enforcement-model--read-this).
+- Device access control is cryptographic: per-device Ed25519 identities,
+  admin-signed membership rows with rollback protection, passphrase
+  envelopes and rotation. The database is treated as an untrusted store.
+  Legacy (unsigned) groups fall back to cooperative enforcement. See
+  [devices.md](devices.md#how-access-is-enforced--read-this).
 - Capture filters: OS "concealed" clipboard hints (password managers) are
   checked *before* reading; credential-looking text can be skipped; capture
   can be paused.

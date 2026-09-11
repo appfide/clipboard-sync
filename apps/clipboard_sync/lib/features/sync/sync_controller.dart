@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:math';
 
 import 'package:clipboard_sync/core/build_info.dart';
 import 'package:clipboard_sync/core/logging.dart';
@@ -51,6 +53,24 @@ class RevocationNotice {
       'your local history is still here. To rejoin, pair again from a device that still has access.';
 }
 
+/// An admin key seen on the group that this device has not pinned yet.
+final pendingTrustProvider =
+    NotifierProvider<PendingTrustNotifier, PendingTrust?>(
+      PendingTrustNotifier.new,
+    );
+
+/// Holds the pending [PendingTrust].
+class PendingTrustNotifier extends Notifier<PendingTrust?> {
+  @override
+  PendingTrust? build() => null;
+
+  /// Pending request.
+  PendingTrust? get request => state;
+
+  /// Sets or clears the request.
+  set request(PendingTrust? value) => state = value;
+}
+
 /// Pending revocation notice, or `null`.
 final revocationProvider =
     NotifierProvider<RevocationNotifier, RevocationNotice?>(
@@ -79,6 +99,7 @@ class PairingSession {
     required this.validUntil,
     required this.passphraseIncluded,
     required this.encryption,
+    required this.grantsAdmin,
   });
 
   /// Sealed code (QR / text).
@@ -99,6 +120,9 @@ class PairingSession {
   /// Whether the group encrypts (joiner must type the passphrase when it
   /// was not included).
   final bool encryption;
+
+  /// Whether the code also carries the admin key.
+  final bool grantsAdmin;
 }
 
 /// Sync lifecycle notifier; state is the engine status.
@@ -109,9 +133,13 @@ class SyncController extends Notifier<SyncStatus> {
   StreamSubscription<SyncStatus>? _statusSub;
   StreamSubscription<List<ClipItem>>? _incomingSub;
   StreamSubscription<List<Device>>? _devicesSub;
+  StreamSubscription<PendingTrust>? _trustSub;
   StreamSubscription<ClipItem>? _captureSub;
   Timer? _retention;
   final _devicesOut = StreamController<List<Device>>.broadcast();
+  DeviceKeys? _identity;
+  AdminKey? _adminKey;
+  String? _trustedAdminPub;
 
   @override
   SyncStatus build() {
@@ -158,10 +186,34 @@ class SyncController extends Notifier<SyncStatus> {
   /// Last known device list.
   List<Device> get knownDevices => _engine?.knownDevices ?? const [];
 
+  /// Ids of devices whose membership verifies (signed group) or is active
+  /// (legacy group).
+  Set<String> get trustedDeviceIds =>
+      _engine?.trustedDevices.keys.toSet() ?? const {};
+
   /// Whether a remote group is connected, so devices can be managed and
   /// pairing codes generated.
   bool get canManageDevices =>
       _engine != null && ref.read(settingsProvider).syncsRemotely;
+
+  /// Whether this device holds the group's admin key.
+  bool get isAdmin => _adminKey != null;
+
+  /// Whether the group has a pinned admin key (signed membership).
+  bool get isSignedGroup => _trustedAdminPub != null;
+
+  /// Pinned admin public key (base64), or `null`.
+  String? get adminPublicKey => _trustedAdminPub;
+
+  /// Fingerprint of the pinned admin key, or `null`.
+  String? get adminFingerprint =>
+      _trustedAdminPub == null ? null : keyFingerprint(_trustedAdminPub!);
+
+  /// Whether this device may change membership: legacy group, or admin.
+  bool get canEditMembership => canManageDevices && (!isSignedGroup || isAdmin);
+
+  /// This device's signing-key fingerprint, or `null` before first start.
+  String? get deviceFingerprint => _identity?.fingerprint;
 
   /// Starts sync, then clipboard capture, from current settings.
   Future<void> start() async {
@@ -322,21 +374,37 @@ class SyncController extends Notifier<SyncStatus> {
     required DeviceRole role,
     DateTime? expiresAt,
     bool includePassphrase = false,
+    bool grantAdmin = false,
     Duration validity = PairingCodec.defaultValidity,
   }) async {
     final s = ref.read(settingsProvider);
     if (!s.syncsRemotely) {
       throw StateError('Local-only mode has no database to share');
     }
+    if (isSignedGroup && !isAdmin) {
+      throw StateError('Only the admin device can add devices to this group');
+    }
     final engine = _managed;
     final id = const Uuid().v4();
     final pin = PairingCodec.generatePin();
     final now = DateTime.now().toUtc();
-    await engine.inviteDevice(id: id, role: role, expiresAt: expiresAt);
+    // The host generates the new device's identity so it can sign its
+    // public keys (and seal the passphrase to it) before it ever connects.
+    final joinerKeys = await DeviceKeys.generate();
     String? passphrase;
     if (includePassphrase && s.encryptionEnabled) {
       passphrase = await ref.read(settingsRepositoryProvider).loadPassphrase();
     }
+    await engine.inviteDevice(
+      id: id,
+      role: role,
+      expiresAt: expiresAt,
+      signPub: joinerKeys.signPub,
+      boxPub: joinerKeys.boxPub,
+      admin: grantAdmin && isAdmin,
+      passphrase: passphrase,
+    );
+    final adminPub = _trustedAdminPub ?? _adminKey?.publicKey;
     final payload = PairingPayload(
       backendId: s.backendId,
       values: Map.of(s.backendValues),
@@ -345,8 +413,11 @@ class SyncController extends Notifier<SyncStatus> {
       validUntil: now.add(validity),
       hostDeviceId: s.deviceId,
       hostDeviceName: s.deviceName,
-      passphrase: passphrase,
+      deviceKeys: await joinerKeys.encode(),
+      adminPub: adminPub,
+      adminKey: grantAdmin && isAdmin ? await _adminKey!.encode() : null,
       encryption: s.encryptionEnabled,
+      passphraseDelivered: passphrase != null,
       role: role,
       expiresAt: expiresAt,
     );
@@ -359,6 +430,7 @@ class SyncController extends Notifier<SyncStatus> {
       validUntil: payload.validUntil,
       passphraseIncluded: passphrase != null,
       encryption: s.encryptionEnabled,
+      grantsAdmin: payload.adminKey != null,
     );
   }
 
@@ -376,13 +448,34 @@ class SyncController extends Notifier<SyncStatus> {
       );
     }
     final repo = ref.read(settingsRepositoryProvider);
-    final pass = payload.passphrase ?? passphrase;
-    if (payload.encryption && (pass == null || pass.isEmpty)) {
+    if (payload.needsPassphrase && (passphrase == null || passphrase.isEmpty)) {
       throw StateError('This group uses encryption; a passphrase is required.');
     }
+    final scope = AppSettings(
+      deviceId: payload.deviceId,
+      deviceName: '',
+      backendId: payload.backendId,
+      backendValues: payload.values,
+    ).backendScope;
     await repo.saveRegisteredScope(null);
     await ref.read(localStoreProvider).resetCursor();
-    await repo.savePassphrase(payload.encryption ? pass : null);
+    // Identity chosen by the host; keys arrive only through the PIN-sealed
+    // code, never through the database.
+    final keys = payload.deviceKeys;
+    if (keys != null) {
+      await repo.saveDeviceKeys(keys);
+      _identity = await DeviceKeys.decode(keys);
+    }
+    await repo.clearGroupTrust(scope);
+    await repo.saveTrustedAdminPub(scope, payload.adminPub);
+    await repo.saveAdminKey(scope, payload.adminKey);
+    // Passphrase: either sealed to us in our device row (arrives on first
+    // check-in) or typed now.
+    await repo.saveKeyring(
+      payload.encryption && !payload.passphraseDelivered
+          ? {1: passphrase!}
+          : {},
+    );
     await ref
         .read(settingsProvider.notifier)
         .update(
@@ -395,6 +488,45 @@ class SyncController extends Notifier<SyncStatus> {
           ),
         );
     log.i('joined ${payload.backendId} group from ${payload.hostDeviceName}');
+  }
+
+  // --- Group security --------------------------------------------------------
+
+  /// Turns the current (legacy) group into a signed one managed by this
+  /// device: generates the admin key, pins it, signs every active row.
+  Future<void> secureGroup() async {
+    final s = ref.read(settingsProvider);
+    if (!s.syncsRemotely) throw StateError('No sync group');
+    if (isSignedGroup) throw StateError('Group is already secured');
+    final repo = ref.read(settingsRepositoryProvider);
+    final key = await AdminKey.generate();
+    await repo.saveAdminKey(s.backendScope, await key.encode());
+    await repo.saveTrustedAdminPub(s.backendScope, key.publicKey);
+    await restart();
+    await _managed.secureGroup();
+    log.i('group secured; admin key ${key.fingerprint}');
+  }
+
+  /// Pins [adminPub] for the current group after the user compared the
+  /// fingerprint with the admin device.
+  Future<void> trustAdmin(String adminPub) async {
+    final s = ref.read(settingsProvider);
+    await ref
+        .read(settingsRepositoryProvider)
+        .saveTrustedAdminPub(s.backendScope, adminPub);
+    ref.read(pendingTrustProvider.notifier).request = null;
+    await restart();
+  }
+
+  /// Issues a fresh random passphrase to every verified active device.
+  /// Returns the new version.
+  Future<int> rotatePassphrase() async {
+    final s = ref.read(settingsProvider);
+    if (!s.encryptionEnabled) throw StateError('Encryption is off');
+    final bytes = List<int>.generate(32, (_) => Random.secure().nextInt(256));
+    final passphrase = base64UrlEncode(bytes);
+    await _managed.rotatePassphrase(passphrase);
+    return _managed.status.keyVersion;
   }
 
   // --- Internals -----------------------------------------------------------
@@ -423,22 +555,30 @@ class SyncController extends Notifier<SyncStatus> {
       return;
     }
 
-    ClipCipher? cipher;
+    final scope = s.backendScope;
+    CipherRing? ring;
     if (s.encryptionEnabled) {
-      final pass = await repo.loadPassphrase();
-      if (pass == null || pass.isEmpty) {
-        state = const SyncStatus(
-          phase: SyncPhase.error,
-          lastError: 'Encryption enabled but no passphrase set',
-          authFailed: true,
-        );
-        return;
-      }
-      cipher = await ClipCipher.fromPassphrase(
-        pass,
+      // An empty ring is legal right after joining: the passphrase arrives
+      // sealed in our device row and the engine holds pushes until then.
+      ring = await CipherRing.fromPassphrases(
+        await repo.loadKeyring(),
         keyScope: s.cipherKeyScope,
       );
     }
+    var keysEncoded = await repo.loadDeviceKeys();
+    if (keysEncoded == null) {
+      final fresh = await DeviceKeys.generate();
+      keysEncoded = await fresh.encode();
+      await repo.saveDeviceKeys(keysEncoded);
+    }
+    _identity = await DeviceKeys.decode(keysEncoded);
+    final adminEncoded = s.syncsRemotely
+        ? await repo.loadAdminKey(scope)
+        : null;
+    _adminKey = adminEncoded == null
+        ? null
+        : await AdminKey.decode(adminEncoded);
+    _trustedAdminPub = s.syncsRemotely ? repo.loadTrustedAdminPub(scope) : null;
 
     final backend = registry.create(s.backendId);
     try {
@@ -454,7 +594,6 @@ class SyncController extends Notifier<SyncStatus> {
     }
     _backend = backend;
 
-    final scope = s.backendScope;
     final engine = SyncEngine(
       backend: backend,
       store: store,
@@ -465,12 +604,34 @@ class SyncController extends Notifier<SyncStatus> {
         lastSeen: DateTime.now().toUtc(),
         appVersion: BuildInfo.version,
       ),
-      cipher: cipher,
+      identity: _identity,
+      adminKey: _adminKey,
+      trustedAdminPub: _trustedAdminPub,
+      cipherRing: ring,
+      onKeyReceived: (version, passphrase) async {
+        final current = await repo.loadKeyring();
+        current[version] = passphrase;
+        await repo.saveKeyring(current);
+        ring?.add(
+          version,
+          await ClipCipher.fromPassphrase(
+            passphrase,
+            keyScope: s.cipherKeyScope,
+          ),
+        );
+        log.i('encryption key v$version installed');
+      },
       pollInterval: Duration(seconds: s.pollIntervalSeconds.clamp(2, 3600)),
       assumeRegistered: s.syncsRemotely && repo.loadRegisteredScope() == scope,
+      seenMembershipVersions: s.syncsRemotely
+          ? repo.loadSeenVersions(scope)
+          : null,
       logger: log.sync,
     );
     _engine = engine;
+    _trustSub = engine.trustRequests.listen(
+      (t) => ref.read(pendingTrustProvider.notifier).request = t,
+    );
     _statusSub = engine.statusStream.listen((st) {
       state = st;
       if (st.phase == SyncPhase.revoked) {
@@ -481,8 +642,11 @@ class SyncController extends Notifier<SyncStatus> {
     });
     _devicesSub = engine.devices.listen((list) {
       _devicesOut.add(list);
-      if (s.syncsRemotely && repo.loadRegisteredScope() != scope) {
-        unawaited(repo.saveRegisteredScope(scope));
+      if (s.syncsRemotely) {
+        if (repo.loadRegisteredScope() != scope) {
+          unawaited(repo.saveRegisteredScope(scope));
+        }
+        unawaited(repo.saveSeenVersions(scope, engine.seenMembershipVersions));
       }
     });
     _incomingSub = engine.incoming.listen((items) async {
@@ -513,8 +677,12 @@ class SyncController extends Notifier<SyncStatus> {
     await repo.clearBackendValues(s.backendId);
     await repo.savePassphrase(null);
     await repo.saveRegisteredScope(null);
+    await repo.clearGroupTrust(s.backendScope);
+    if (!ref.mounted) return;
+    ref.read(pendingTrustProvider.notifier).request = null;
     await ref.read(localStoreProvider).resetCursor();
-    _devicesOut.add(const []);
+    if (!ref.mounted) return;
+    if (!_devicesOut.isClosed) _devicesOut.add(const []);
     // Switching the backend restarts the engine in local-only mode.
     await ref
         .read(settingsProvider.notifier)
@@ -537,6 +705,7 @@ class SyncController extends Notifier<SyncStatus> {
     await _statusSub?.cancel();
     await _incomingSub?.cancel();
     await _devicesSub?.cancel();
+    await _trustSub?.cancel();
     await _engine?.dispose();
     await _backend?.dispose();
     _engine = null;

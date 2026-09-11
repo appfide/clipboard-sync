@@ -26,6 +26,7 @@ class _PairPageState extends ConsumerState<PairPage> {
   DeviceRole _role = DeviceRole.full;
   Duration? _access;
   bool _includePassphrase = false;
+  bool _grantAdmin = false;
   bool _busy = false;
   PairingSession? _session;
   Timer? _tick;
@@ -52,6 +53,7 @@ class _PairPageState extends ConsumerState<PairPage> {
                 ? null
                 : DateTime.now().toUtc().add(_access!),
             includePassphrase: _includePassphrase,
+            grantAdmin: _grantAdmin,
           );
       _tick?.cancel();
       _tick = Timer.periodic(const Duration(seconds: 1), (_) => _countdown());
@@ -160,12 +162,22 @@ class _PairPageState extends ConsumerState<PairPage> {
                   if (settings.encryptionEnabled)
                     SwitchRow(
                       icon: Icons.key_rounded,
-                      title: 'Include encryption passphrase',
+                      title: 'Share encryption passphrase',
                       subtitle: _includePassphrase
-                          ? 'Anyone with the code and PIN can read your history. Prefer typing it on the new device.'
+                          ? 'Sealed to the new device’s key and delivered through its device row — never inside the code.'
                           : 'Off — you will type the passphrase on the new device.',
                       value: _includePassphrase,
                       onChanged: (v) => setState(() => _includePassphrase = v),
+                    ),
+                  if (ref.read(syncControllerProvider.notifier).isAdmin)
+                    SwitchRow(
+                      icon: Icons.shield_rounded,
+                      title: 'Can manage devices',
+                      subtitle: _grantAdmin
+                          ? 'The admin key travels in this code. The new device can add, block and remove devices and rotate keys.'
+                          : 'Off — the new device is a member only.',
+                      value: _grantAdmin,
+                      onChanged: (v) => setState(() => _grantAdmin = v),
                     ),
                 ],
               ),
@@ -336,6 +348,8 @@ class _Steps extends StatelessWidget {
       'Type the PIN.',
       if (session.encryption && !session.passphraseIncluded)
         'Enter the encryption passphrase when asked.',
+      if (session.grantsAdmin)
+        'That device becomes an admin — treat the code accordingly.',
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

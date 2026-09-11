@@ -33,6 +33,9 @@ class SyncStatus {
     this.realtime = false,
     this.role = DeviceRole.full,
     this.revokedReason,
+    this.signedGroup = false,
+    this.selfVerified = true,
+    this.keyVersion = 0,
   });
 
   /// Initial status.
@@ -62,6 +65,16 @@ class SyncStatus {
   /// Why the engine stopped when [phase] is [SyncPhase.revoked].
   final String? revokedReason;
 
+  /// Whether an admin key is pinned (membership and clips are verified).
+  final bool signedGroup;
+
+  /// In a signed group: whether this device's own row carries a valid admin
+  /// signature. When false, other devices ignore this device's clips.
+  final bool selfVerified;
+
+  /// Newest passphrase version this device holds (0 = no encryption).
+  final int keyVersion;
+
   /// Copy with fields replaced.
   SyncStatus copyWith({
     SyncPhase? phase,
@@ -72,6 +85,9 @@ class SyncStatus {
     bool? realtime,
     DeviceRole? role,
     String? revokedReason,
+    bool? signedGroup,
+    bool? selfVerified,
+    int? keyVersion,
     bool clearError = false,
   }) => SyncStatus(
     phase: phase ?? this.phase,
@@ -82,6 +98,9 @@ class SyncStatus {
     realtime: realtime ?? this.realtime,
     role: role ?? this.role,
     revokedReason: revokedReason ?? this.revokedReason,
+    signedGroup: signedGroup ?? this.signedGroup,
+    selfVerified: selfVerified ?? this.selfVerified,
+    keyVersion: keyVersion ?? this.keyVersion,
   );
 
   @override

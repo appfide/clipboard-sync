@@ -19,8 +19,11 @@ of that model are.
    it now.
 
 What travels inside the code: the database type and settings (including the
-secret fields), a device id chosen by the host, the role and expiry, the
-host's name, and optionally the passphrase.
+secret fields), a device id **and identity keys** chosen by the host, the
+admin public key to pin, the role and expiry, the host's name, and — only
+with *Can manage devices* — the admin key. The encryption passphrase never
+travels in the code: with *Share encryption passphrase* on, the host seals it
+to the new device's key inside its device row.
 
 ### How the code is protected
 
@@ -35,15 +38,16 @@ Rules the app follows around codes:
 - The pairing code is copied to the clipboard **without** being recorded in
   history, and a pairing code that appears on any device's clipboard is never
   captured — so credentials cannot leak into the shared history.
-- The E2E passphrase is **not** included unless you switch it on. Typing it
-  on the new device is the safer default.
+- The passphrase is delivered sealed to the new device only when you switch
+  *Share encryption passphrase* on; otherwise it is typed on the new device.
 - Treat the code like the database password it contains: show it only to the
   device you are adding, never share screenshots.
 
 ### What the host does when you generate a code
 
-It writes a *pending* row to the `devices` table with the new device id,
-role, expiry and `paired_by`. The list shows it as **Invited · waiting**.
+It generates the new device's keys, writes a *pending* row to the `devices`
+table with the id, public keys, role, expiry, `paired_by` (and, in a signed
+group, the admin signature and sealed passphrase). The list shows it as **Invited · waiting**.
 When the joining device first checks in, it adopts that id and inherits the
 row — the host decided the access, not the joiner. If the code is never used,
 **Cancel invitation** (on the code screen) or **Forget** (in the list)
@@ -71,54 +75,109 @@ single device (`target_device_id`). Every other device skips it on pull. The
 copy is hidden in the sender's history; the receiver sees it with a
 "sent only to this device" mark.
 
-## Enforcement model — read this
+## How access is enforced — read this
 
-All devices in a group hold the **same** database credentials. Block,
-remove, roles and expiry are stored in the `devices` table and honoured by
-the app on each device:
+All devices in a group hold the **same** database credentials, so the
+database itself cannot tell them apart. Clipboard Sync therefore enforces
+membership cryptographically, on every device, instead of relying on the
+database:
 
-- every device re-reads the device list on a one-minute heartbeat (and
-  before any sync older than that), refreshes its own presence, adopts its
-  role, and ignores clips from blocked / expired devices;
-- a device whose own row says blocked, removed or expired — or whose row is
-  gone after it had registered — stops itself, wipes the credentials and the
-  passphrase, and falls back to local-only mode.
+### Signed groups (recommended — the default for groups created with 0.2+)
 
-This is **cooperative**: a modified client, or an app version older than
-0.2.0 (which never reads `status`), keeps its credentials and can still read
-and write the database. It is the right model for one person's own devices.
-If you need the database itself to enforce access, use per-user rules on the
-backend (Supabase RLS, PocketBase rules, Firestore rules) — see the backend
-guides — or wait for per-device credentials, which is planned.
+- Every device has an **identity**: an Ed25519 signing key and an X25519
+  key. The private halves live only in the OS credential store.
+- The group has an **admin key**. The device that pressed *Secure this
+  group* (or created the group) holds it; every other device pins its
+  public key when it joins through a pairing code, or after confirming the
+  fingerprint once (legacy members).
+- **Every clip is signed** by the device that captured it, over the stored
+  form (ciphertext when encrypted). Receivers verify the signature against
+  the signing key on that device's admin-signed row before decrypting or
+  applying anything.
+- **Every membership change is signed by the admin key**: status, role,
+  expiry, the device's public keys, the admin flag, the key envelope and a
+  monotonically increasing version. Devices honour a row only if the
+  signature verifies and the version is not lower than one they have seen.
+- **Passphrases travel in envelopes**, sealed to each device's X25519 key
+  and covered by the admin signature. *Rotate encryption key* issues a fresh
+  random passphrase to every verified active device; a removed or blocked
+  device gets nothing and cannot read clips sealed with the new key.
 
-Practical consequences:
+With that in place, someone who has the database credentials but not the
+admin key can still *read the database* (ciphertext only, when encryption is
+on) and *delete rows*, but cannot:
 
-- Blocking a lost phone stops the *app* on it; it does not stop someone who
-  extracts the credentials. Rotate the database password / auth user as well.
-- E2E encryption limits what a rogue device can read to what it already had
-  the passphrase for; change the passphrase after removing an untrusted
-  device.
+| Attack | Outcome |
+|---|---|
+| Inject a clip as one of your devices (unsigned, wrong key, or a genuine clip with content / target / timestamp changed) | Rejected: the signature does not verify |
+| Replay an old signed version of a clip (e.g. to undelete it) | Ignored: last-writer-wins keeps the newer tombstone |
+| Register a new device and start sending | Its row is not admin-signed → shown as **Unverified**, its clips are dropped by everyone |
+| Block, remove or expire a device by editing its row | Ignored: the signature breaks. The device keeps running; the admin re-signs the true state |
+| Sign such a change with their own admin key | Ignored: only the pinned admin key counts |
+| Un-block themselves after a genuine block | Editing the row breaks the signature → still untrusted; restoring the earlier valid row is a rollback (lower version) → still untrusted |
+| Give themselves the admin flag or a wider role | Same: unsigned change → untrusted |
+| Swap a device's key envelope for one holding a passphrase they chose | Ignored: the envelope is covered by the admin signature |
+| Keep an old copy of the app running after removal to read new clips | Rotate the key: they never receive the new version |
+| Pose as an existing device from a second machine (cloned id) | They lack the private signing key → nothing they send verifies |
+| Read clips that were sent to one specific device | Same as any other clip: needs the group key; targeted delivery is a routing hint, encryption is the secrecy |
+
+What the model does **not** cover:
+
+- The **admin key** is the root of trust. Losing the admin device means
+  setting the group up again; an attacker who obtains it controls
+  membership. The pairing option *Can manage devices* copies it to another
+  device — use deliberately.
+- **Trust on first use**: a member of a legacy group that sees a new admin
+  key is asked to compare the fingerprint with the admin device. Accepting
+  a fingerprint you did not check hands the group to whoever wrote that row.
+- **Deletion and denial of service**: database credentials still allow
+  deleting or overwriting rows. Signatures make tampering detectable, not
+  impossible. Use the backend's own access rules to limit that.
+- **Plaintext when encryption is off**: without a passphrase the database
+  (and anyone with its credentials) reads every clip. Turn encryption on.
+- **A pairing code plus its PIN** is a full invitation: the device it
+  creates is admin-signed. Cancel unused invitations and rotate the key if
+  a code may have leaked.
+
+### Legacy groups (created with 0.1, or not yet secured)
+
+Nothing is signed. Block / remove / expiry are honoured cooperatively by
+each app, devices that publish a signing key still get their clips
+verified, but anyone with the credentials can pose as a device, undo a
+block, or read unencrypted clips. **Settings → Devices → Secure this
+group** upgrades in place: the device becomes admin, signs every current
+member, and other devices confirm the fingerprint once.
+
+App versions before 0.2 never read `status`, never sign, and are shown as
+*Unverified* in a signed group; their clips are dropped. Update them and
+re-add them with a pairing code.
 
 ## Upgrading a database created with 0.1.0
 
-The `devices` table gained `status`, `role`, `expires_at`, `paired_by` and
-`app_version`; `clip_items` gained `target_device_id`. Schema-less backends
-(CouchDB, Firestore, MongoDB) need nothing. Supabase and PocketBase need the
-upgrade snippet in their guide; **Test connection & schema** reports what is
-missing. Until the columns exist, device management reports an error rather
-than silently doing nothing.
+`devices` gained membership, key and signature columns; `clip_items`
+gained `target_device_id`, `key_version` and `sig`. Schema-less backends
+(CouchDB, Firestore, MongoDB) need nothing. Supabase and PocketBase need
+the upgrade snippet in their guide; **Test connection & schema** reports
+what is missing, and PocketBase refuses to sync until the fields exist
+because it silently drops unknown ones.
 
 ## Schema reference
 
 `devices` row:
 
-| field | type | written by |
+| field | written by | covered by admin signature |
 |---|---|---|
-| `id` | text | the device (heartbeat) or the host (invitation) |
-| `name`, `platform`, `last_seen`, `app_version` | presence | the device, every heartbeat |
-| `status` | `active` / `blocked` / `removed` | managing device |
-| `role` | `full` / `send_only` / `receive_only` | managing device |
-| `expires_at` | timestamp or null | managing device |
-| `paired_by` | device id or null | host, at invitation |
+| `id` | the device (heartbeat) or the host (invitation) | yes |
+| `name`, `platform`, `last_seen`, `app_version` | the device, every heartbeat | no |
+| `sign_pub`, `box_pub` | host at invitation (signed group) or the device itself once (legacy) | yes |
+| `status`, `role`, `expires_at` | admin | yes |
+| `paired_by` | host at invitation | no |
+| `admin`, `admin_pub` | admin | yes |
+| `membership_version`, `membership_sig` | admin | version yes; sig is the signature |
+| `key_version`, `key_envelope` | admin (invite / rotate) | yes |
 
-A heartbeat writes only the presence fields, so it never undoes a block.
+`clip_items` gained `target_device_id` (routing), `key_version` (which
+passphrase sealed it) and `sig` (Ed25519 over the stored row).
+
+A heartbeat writes only presence fields, so it never undoes a block or
+breaks a signature.
