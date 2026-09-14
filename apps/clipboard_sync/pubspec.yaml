@@ -13,7 +13,7 @@ dependencies:
   clipsync_core:
     path: ../../packages/clipsync_core
   clock: ^1.1.2
-  drift: ^2.34.4
+  drift: ^2.35.0
   drift_flutter: ^0.3.1
   ffi: ^2.2.0
   flutter:
