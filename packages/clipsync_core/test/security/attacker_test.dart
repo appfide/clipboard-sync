@@ -404,6 +404,7 @@ void main() {
       expect(ex.received, ['before rotation']);
 
       await admin.engine!.removeDevice('C');
+      final envelopeC = atk.row('C').keyEnvelope;
       // C keeps running a modified client that ignores revocation and
       // still holds passphrase v1.
       final issued = await admin.engine!.rotatePassphrase(
@@ -412,7 +413,9 @@ void main() {
       expect(issued, 2, reason: 'A and B only');
       await member.engine!.refreshDevices();
       expect(member.passphrases[2], 'group passphrase v2');
-      expect(atk.row('C').keyEnvelope, isNot(contains('v2')));
+      // C was not re-issued: its envelope and version are untouched.
+      expect(atk.row('C').keyVersion, 1);
+      expect(atk.row('C').keyEnvelope, envelopeC);
 
       await admin.say('after rotation');
       await member.engine!.syncNow();
@@ -437,7 +440,7 @@ void main() {
       final issued = await admin.engine!.rotatePassphrase('v2');
       expect(issued, 1, reason: 'admin only');
       expect(atk.row('B').keyVersion, 1);
-      expect(atk.row('B').keyEnvelope, isNot(contains('v2')));
+      expect(atk.row('B').keyEnvelope, oldRow.keyEnvelope);
     });
 
     test('a device cannot forge the admin flag or its own role', () async {
