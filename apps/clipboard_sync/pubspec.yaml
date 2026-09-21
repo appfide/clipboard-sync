@@ -42,7 +42,7 @@ dev_dependencies:
   drift_dev: ^2.35.0
   flutter_test:
     sdk: flutter
-  sqlite3: ^3.5.2
+  sqlite3: ^3.6.0
   very_good_analysis: ^10.3.0
 
 flutter:
