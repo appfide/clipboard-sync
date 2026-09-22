@@ -188,6 +188,52 @@ void main() {
       expect(shared.items[sealed.id]!.content, sealed.content);
     });
 
+    test('spots encrypted rows still carrying the plain digest', () async {
+      // What the old build wrote: sealed content, plaintext SHA-256 beside it.
+      final legacy = (await cipher.seal(
+        textItem('one time code 123456', deviceId: deviceA.id),
+      )).copyWith(contentHash: sha256Hex('one time code 123456'));
+      put(legacy);
+      // What this build writes.
+      put(await cipher.seal(textItem('fresh', deviceId: deviceA.id)));
+
+      final stale = await engineA.legacyHashedClips();
+
+      expect(stale.map((i) => i.id), [legacy.id]);
+    });
+
+    test('rehashing keys the fingerprint and leaves the ciphertext', () async {
+      const text = 'one time code 123456';
+      final sealed = await cipher.seal(textItem(text, deviceId: deviceA.id));
+      final legacy = sealed.copyWith(contentHash: sha256Hex(text));
+      put(legacy);
+
+      expect(await engineA.rehashLegacyClips(), 1);
+
+      final row = shared.items[legacy.id]!;
+      expect(row.content, sealed.content, reason: 'ciphertext untouched');
+      expect(row.updatedAt, legacy.updatedAt, reason: 'no churn for others');
+      expect(row.contentHash, isNot(sha256Hex(text)));
+      expect(row.contentHash, await cipher.contentFingerprint(text));
+      // Still decryptable, and the local view still sees the plain digest.
+      final opened = await cipher.open(row);
+      expect(opened.content, text);
+      expect(opened.contentHash, sha256Hex(text));
+      expect(await engineA.legacyHashedClips(), isEmpty);
+    });
+
+    test("leaves other devices' rows alone — it cannot re-sign them", () async {
+      const text = 'theirs';
+      final theirs = (await cipher.seal(
+        textItem(text, deviceId: 'dev-b'),
+      )).copyWith(contentHash: sha256Hex(text));
+      put(theirs);
+
+      expect(await engineA.legacyHashedClips(), isEmpty);
+      expect(await engineA.rehashLegacyClips(), 0);
+      expect(shared.items[theirs.id]!.contentHash, sha256Hex(text));
+    });
+
     test('refuses to run when the group does not encrypt at all', () async {
       // Every row would qualify, so offering to purge would mean offering to
       // delete the entire history.

@@ -363,6 +363,28 @@ class SyncController extends Notifier<SyncStatus> {
     }
   }
 
+  /// Encrypted clips this device wrote before the fingerprint was keyed, whose
+  /// `content_hash` still gives away short content. Empty when sync is off.
+  Future<List<ClipItem>> legacyHashedClips() async {
+    final engine = _engine;
+    if (engine == null || !ref.read(settingsProvider).encryptionEnabled) {
+      return const [];
+    }
+    try {
+      return await engine.legacyHashedClips();
+    } catch (e) {
+      log.w('fingerprint scan failed', error: e);
+      return const [];
+    }
+  }
+
+  /// Rewrites those fingerprints. Returns how many. Keeps the clips.
+  Future<int> rehashLegacyClips() async {
+    final fixed = await _managed.rehashLegacyClips();
+    log.i('rewrote $fixed leaky fingerprint(s)');
+    return fixed;
+  }
+
   /// Overwrites those clips with empty tombstones. Returns how many.
   Future<int> purgePlaintextClips() async {
     final cleared = await _managed.purgePlaintextClips();

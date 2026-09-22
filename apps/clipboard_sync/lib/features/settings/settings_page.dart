@@ -93,7 +93,7 @@ class SettingsPage extends ConsumerWidget {
               ),
               const SectionCard(
                 title: 'Privacy',
-                children: [_EncryptionRow(), _PlaintextRow()],
+                children: [_EncryptionRow(), _PlaintextRow(), _LegacyHashRow()],
               ),
               SectionCard(
                 title: 'Appearance',
@@ -595,6 +595,80 @@ class _PlaintextRowState extends ConsumerState<_PlaintextRow> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : TextButton(onPressed: _purge, child: const Text('Clear')),
+    );
+  }
+}
+
+/// Offers to key the fingerprints on encrypted clips this device wrote before
+/// the hash was keyed. Non-destructive: the clips stay, only `content_hash`
+/// changes.
+class _LegacyHashRow extends ConsumerStatefulWidget {
+  const _LegacyHashRow();
+
+  @override
+  ConsumerState<_LegacyHashRow> createState() => _LegacyHashRowState();
+}
+
+class _LegacyHashRowState extends ConsumerState<_LegacyHashRow> {
+  int? _count;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_scan());
+  }
+
+  Future<void> _scan() async {
+    final stale = await ref
+        .read(syncControllerProvider.notifier)
+        .legacyHashedClips();
+    if (mounted) setState(() => _count = stale.length);
+  }
+
+  Future<void> _fix() async {
+    setState(() => _busy = true);
+    try {
+      final fixed = await ref
+          .read(syncControllerProvider.notifier)
+          .rehashLegacyClips();
+      if (mounted) {
+        setState(() => _count = 0);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Rewrote $fixed fingerprint(s).')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not rewrite them: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = _count ?? 0;
+    if (n == 0) return const SizedBox.shrink();
+    return SettingRow(
+      key: const ValueKey('legacy-hash-warning'),
+      icon: Icons.fingerprint_rounded,
+      tint: AppTokens.amber600,
+      title:
+          '$n encrypted clip${n == 1 ? '' : 's'} with a guessable fingerprint',
+      subtitle:
+          'Written before the hash was keyed. Rewriting keeps the clips and '
+          'their timestamps.',
+      trailing: _busy
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : TextButton(onPressed: _fix, child: const Text('Rewrite')),
     );
   }
 }

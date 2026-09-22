@@ -384,19 +384,25 @@ class SyncEngine {
     if (_ring == null) {
       throw StateError('Encryption is off for this group');
     }
-    final found = <ClipItem>[];
+    final found = (await _allRemote())
+        .where((i) => !i.encrypted && !i.isDeleted && i.content.isNotEmpty)
+        .toList();
+    _log('found ${found.length} plaintext clip(s)');
+    return found;
+  }
+
+  /// Every row in the table, this device's own included.
+  Future<List<ClipItem>> _allRemote() async {
+    final all = <ClipItem>[];
     DateTime? cursor;
     while (true) {
       final page = await _backend.pullSince(
         cursor,
-        // Sentinel: no device id looks like this, so nothing is excluded and
-        // this device's own old rows are scanned too.
+        // Sentinel: no device id looks like this, so nothing is excluded.
         excludeDeviceId: '-',
       );
       if (page.isEmpty) break;
-      found.addAll(
-        page.where((i) => !i.encrypted && !i.isDeleted && i.content.isNotEmpty),
-      );
+      all.addAll(page);
       final newest = page
           .map((i) => i.updatedAt)
           .reduce((a, b) => a.isAfter(b) ? a : b);
@@ -404,8 +410,67 @@ class SyncEngine {
       cursor = newest;
       if (page.length < 500) break;
     }
-    _log('found ${found.length} plaintext clip(s)');
+    return all;
+  }
+
+  /// Encrypted clips this device wrote whose `content_hash` is still the plain
+  /// SHA-256 of the plaintext, from before the fingerprint was keyed.
+  ///
+  /// The ciphertext is safe; the fingerprint beside it is not — it lets anyone
+  /// with read access confirm a guess about a short clip. Detection is exact
+  /// rather than heuristic: decrypt, hash the plaintext, and see whether that
+  /// is what the row carries.
+  ///
+  /// Only this device's own rows qualify. A clip's signature is verified
+  /// against the *writing* device's key, so re-signing someone else's row
+  /// would make every other device reject it; each device fixes its own.
+  Future<List<ClipItem>> legacyHashedClips() async {
+    final ring = _ring;
+    if (ring == null || ring.isEmpty) return const [];
+    final found = <ClipItem>[];
+    for (final row in await _allRemote()) {
+      if (!row.encrypted || row.isDeleted || row.content.isEmpty) continue;
+      if (row.deviceId != _device.id) continue;
+      final cipher = ring.cipherFor(row.keyVersion == 0 ? 1 : row.keyVersion);
+      if (cipher == null) continue;
+      try {
+        // open() sets contentHash to the plain digest, so an unchanged value
+        // means the row was written before the fingerprint was keyed.
+        final opened = await cipher.open(row);
+        if (opened.contentHash == row.contentHash) found.add(row);
+      } on CipherException {
+        continue;
+      }
+    }
+    _log('found ${found.length} clip(s) with a leaky fingerprint');
     return found;
+  }
+
+  /// Replaces the plain digest on those rows with the keyed fingerprint,
+  /// leaving the ciphertext and every timestamp untouched. Returns how many.
+  Future<int> rehashLegacyClips() async {
+    final ring = _ring;
+    if (ring == null) throw StateError('Encryption is off for this group');
+    final stale = await legacyHashedClips();
+    if (stale.isEmpty) return 0;
+    final fixed = <ClipItem>[];
+    for (final row in stale) {
+      final cipher = ring.cipherFor(row.keyVersion == 0 ? 1 : row.keyVersion)!;
+      final opened = await cipher.open(row);
+      var item = row.copyWith(
+        contentHash: await cipher.contentFingerprint(opened.content),
+        clearSig: true,
+      );
+      final keys = identity;
+      if (keys != null) item = await ClipSigning.signItem(item, keys);
+      fixed.add(item);
+    }
+    for (var i = 0; i < fixed.length; i += pushBatchSize) {
+      final end = (i + pushBatchSize).clamp(0, fixed.length);
+      await _backend.upsert(fixed.sublist(i, end));
+    }
+    _log('rewrote ${fixed.length} leaky fingerprint(s)');
+    return fixed.length;
   }
 
   /// Overwrites every clip from [plaintextClips] with an empty tombstone and
