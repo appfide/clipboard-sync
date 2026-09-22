@@ -5,9 +5,47 @@
 1. Bump `version:` in `apps/nija/pubspec.yaml` (SemVer) and add a
    `CHANGELOG.md` entry in the same PR.
 2. Merge to `main`. The **Release** workflow sees the new version, tags
-   `v<version>`, builds every installer with `flutter_distributor`, and
-   publishes a GitHub Release with `SHA256SUMS.txt`.
+   `v<version>`, builds every installer with `flutter_distributor`, verifies
+   each one, and publishes a GitHub Release.
 3. Pushing a `v*` tag by hand triggers the same pipeline.
+
+Only one release runs at a time: a second version bump queues behind the first
+rather than racing it for the tag.
+
+### What the release ships
+
+| File | What it is |
+|---|---|
+| The installers below | One per platform |
+| `SHA256SUMS.txt` | Checksum of every file in the release, the SBOM included |
+| `nija-<v>-sbom.spdx.json` | SPDX bill of materials for the whole repository |
+| Build provenance | Attached to the release, not a file: signed by GitHub through the workflow's OIDC identity |
+
+### Verifying a download
+
+```sh
+sha256sum -c SHA256SUMS.txt --ignore-missing     # integrity
+gh attestation verify Nija-<v>-macos.dmg --repo appfide/nija   # origin
+```
+
+The attestation says which workflow, commit and runner produced that exact
+file. A file that was rebuilt or tampered with anywhere between the runner and
+the download fails this check, which a checksum alone cannot tell you, because
+whoever replaces the file can replace the checksum next to it.
+
+### The verification gate
+
+Before anything is published, `scripts/verify_artifacts.sh` opens each
+installer and checks that it is the app it claims to be: bundle identifier
+`com.appfide.nija`, the version being released, a binary of plausible size, and
+the signing state the release promises (Developer ID and a notarization staple
+on macOS, a verified upload-key signature on Android). A build that ships the
+wrong identifier or last version's number fails the release instead of reaching
+users. Run it locally against a `dist/` directory the same way CI does:
+
+```sh
+scripts/verify_artifacts.sh macos 0.4.0 apps/nija/dist
+```
 
 | Platform | Artifact | Signed? |
 |---|---|---|

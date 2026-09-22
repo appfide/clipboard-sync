@@ -13,6 +13,13 @@ All notable changes to this project are documented here. Format follows
 - The repository, the Flutter app and the core package are now `appfide/nija`, `apps/nija` and `packages/nija_core`. Live-backend tests read `NIJA_TEST_<BACKEND>_*` environment variables instead of `CLIPSYNC_TEST_*`.
 - Noto Sans Devanagari (SIL OFL 1.1) ships with the app so the name renders in its own script on every platform, not only where the OS happens to have a Devanagari face.
 
+### Added
+- **Every release is now verified before it is published.** `scripts/verify_artifacts.sh` opens each installer and checks it is the app it claims to be — bundle identifier `com.appfide.nija`, the version being released, a plausible binary size, and the signing state the release promises (Developer ID plus a notarization staple on macOS, a verified upload-key signature on Android). A build carrying the wrong identifier or last version's number now fails the release rather than reaching users.
+- **Build provenance.** Every published file carries a GitHub-signed attestation naming the workflow, commit and runner that produced it: `gh attestation verify <file> --repo appfide/nija`. A checksum only proves a file is intact; provenance proves where it came from, which matters because whoever can replace the file can replace the checksum beside it.
+- **An SPDX software bill of materials** ships with each release and is covered by `SHA256SUMS.txt`.
+- Release notes now lead with the CHANGELOG section for that version instead of only a list of commit subjects.
+- Releases are serialised: a second version bump queues behind the one in flight instead of racing it for the tag.
+
 ### Unchanged (deliberately)
 - The passphrase-to-key derivation, the keyed content fingerprint and the key-envelope labels still carry their original `clipsync-*` v1 names. They are wire constants baked into data already sitting in users' databases: renaming them would make existing clips undecryptable and break de-duplication. The app's name is not part of its key schedule.
 

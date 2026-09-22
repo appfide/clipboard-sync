@@ -13,6 +13,12 @@ on:
 permissions:
   contents: read
 
+# A release must never race another one: both would push tags and upload into
+# the same release. Queue instead of cancelling, so a started build finishes.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   FLUTTER_VERSION: "3.44.4"
   APP_DIR: apps/nija
@@ -252,6 +258,13 @@ jobs:
           # What Gatekeeper will do on the user's machine.
           spctl --assess --type open --context context:primary-signature -vv "$dmg"
 
+      - name: Verify packaged artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/verify_artifacts.sh \
+            "${{ matrix.platform }}" "$VERSION" "$APP_DIR/dist"
+
       - name: Collect artifacts
         shell: bash
         run: |
@@ -282,22 +295,46 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      # Provenance is signed through the job's OIDC identity, not a stored key.
+      id-token: write
+      attestations: write
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.tag }}
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           path: artifacts
           merge-multiple: true
+      - name: Software bill of materials
+        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
+        with:
+          path: .
+          format: spdx-json
+          artifact-name: nija-${{ needs.version.outputs.version }}-sbom.spdx.json
+          output-file: artifacts/nija-${{ needs.version.outputs.version }}-sbom.spdx.json
+          upload-release-assets: false
+
       - name: Checksums
         run: |
           cd artifacts
           sha256sum -- * > SHA256SUMS.txt
           cat SHA256SUMS.txt
+
+      # Ties every installer to this workflow, this commit and this runner.
+      # `gh attestation verify <file> --repo <owner>/<repo>` checks one.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: artifacts/*
+
       - name: Release notes header
         env:
           MACOS_SIGNED: ${{ secrets.MACOS_CERT_P12_BASE64 != '' }}
+          VERSION: ${{ needs.version.outputs.version }}
         run: |
           set -euo pipefail
           docs=https://github.com/appfide/nija/blob/main/docs/release.md
@@ -308,8 +345,14 @@ jobs:
             else
               echo "Unsigned builds: see [docs/release.md]($docs#installing-unsigned-builds) for Gatekeeper / SmartScreen steps."
             fi
-            echo "Verify downloads with \`SHA256SUMS.txt\`."
+            echo "Verify downloads with \`SHA256SUMS.txt\`, and their origin with"
+            echo "\`gh attestation verify <file> --repo ${GITHUB_REPOSITORY}\`."
+            echo "An SPDX bill of materials ships with the release."
           } > notes.md
+
+          # Lead with this version's CHANGELOG section: hand-written notes beat
+          # a list of commit subjects, and the file is the release's own record.
+          python3 scripts/changelog_section.py "$VERSION" >> notes.md || true
           cat notes.md
       - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
