@@ -95,6 +95,12 @@ with read access confirm a guess or run a dictionary against short clips such
 as one-time codes and passwords. Devices in the group still de-duplicate on
 it; nobody else learns anything from it.
 
+Rows written before either change are migrated from Settings → Privacy: clips
+from the plaintext era can be cleared, and encrypted clips still carrying the
+old plain digest can have it rewritten as the keyed one. A device can only
+rewrite rows it wrote itself, since a clip's signature is verified against the
+writing device's key.
+
 Turning encryption on seals what is written next — it does not reach back over
 history. Settings → Privacy counts the clips written before the group was
 secured and offers to clear them; until that is done they stay readable.
