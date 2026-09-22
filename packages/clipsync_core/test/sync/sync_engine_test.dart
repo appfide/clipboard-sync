@@ -128,6 +128,83 @@ void main() {
     await backendB.dispose();
   });
 
+  group('legacy plaintext clips', () {
+    late ClipCipher cipher;
+
+    setUp(() async {
+      cipher = await ClipCipher.fromPassphrase('pw', keyScope: 'memory');
+      await engineA.dispose();
+      engineA = SyncEngine(
+        backend: backendA,
+        store: storeA,
+        device: deviceA,
+        cipher: cipher,
+        pollInterval: const Duration(hours: 1),
+        heartbeatInterval: const Duration(hours: 1),
+      );
+    });
+
+    void put(ClipItem item) => shared.items[item.id] = item;
+
+    test('finds the rows written before the group was encrypted', () async {
+      // Two rows from the plaintext era, one sealed since, one tombstone.
+      final old1 = textItem('old secret', deviceId: 'dev-b');
+      final old2 = textItem('another', deviceId: 'dev-b');
+      put(old1);
+      put(old2);
+      put(await cipher.seal(textItem('sealed', deviceId: 'dev-b')));
+      put(
+        textItem('gone', deviceId: 'dev-b').copyWith(
+          content: '',
+          deletedAt: DateTime.now().toUtc(),
+        ),
+      );
+
+      final stale = await engineA.plaintextClips();
+
+      expect(stale.map((i) => i.id), unorderedEquals([old1.id, old2.id]));
+    });
+
+    test('purging clears the content, not just the deleted flag', () async {
+      final old = textItem('old secret', deviceId: 'dev-b');
+      put(old);
+
+      final cleared = await engineA.purgePlaintextClips();
+
+      expect(cleared, 1);
+      final row = shared.items[old.id]!;
+      expect(row.content, isEmpty, reason: 'plaintext must leave the database');
+      expect(row.contentHash, isEmpty);
+      expect(row.isDeleted, isTrue);
+      expect(storeA.items[old.id]!.isDeleted, isTrue);
+      expect(await engineA.plaintextClips(), isEmpty);
+    });
+
+    test('leaves encrypted rows alone', () async {
+      final sealed = await cipher.seal(textItem('sealed', deviceId: 'dev-b'));
+      put(sealed);
+
+      expect(await engineA.purgePlaintextClips(), 0);
+      expect(shared.items[sealed.id]!.content, sealed.content);
+    });
+
+    test('refuses to run when the group does not encrypt at all', () async {
+      // Every row would qualify, so offering to purge would mean offering to
+      // delete the entire history.
+      await engineA.dispose();
+      engineA = SyncEngine(
+        backend: backendA,
+        store: storeA,
+        device: deviceA,
+        pollInterval: const Duration(hours: 1),
+      );
+      put(textItem('old secret', deviceId: 'dev-b'));
+
+      expect(engineA.plaintextClips, throwsStateError);
+      expect(engineA.purgePlaintextClips, throwsStateError);
+    });
+  });
+
   test('wrong passphrase surfaces as auth failure and stops retries', () async {
     final cipher = await ClipCipher.fromPassphrase('pw', keyScope: 'memory');
     shared.items['x'] = await cipher.seal(

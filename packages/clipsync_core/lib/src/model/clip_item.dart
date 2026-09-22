@@ -166,6 +166,7 @@ class ClipItem {
   /// Returns a copy with the given fields replaced.
   ClipItem copyWith({
     String? content,
+    String? contentHash,
     String? blobRef,
     bool? encrypted,
     String? nonce,
@@ -184,7 +185,7 @@ class ClipItem {
     type: type,
     content: content ?? this.content,
     blobRef: blobRef ?? this.blobRef,
-    contentHash: contentHash,
+    contentHash: contentHash ?? this.contentHash,
     sizeBytes: sizeBytes,
     encrypted: encrypted ?? this.encrypted,
     nonce: clearNonce ? null : (nonce ?? this.nonce),

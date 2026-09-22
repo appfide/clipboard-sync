@@ -78,5 +78,31 @@ patterns to `.gitleaks.toml`.
 - Every log line passes through `redactSecrets`.
 - E2E encryption keeps the database blind to content; the key scope binds the
   passphrase to one backend + URL.
+
+### What a database holder can still see
+
+Encryption covers `content`, and nothing else. Anyone with the credentials —
+including the provider — sees, for every clip: the device id and name that
+wrote it, the content type, the size in bytes, created/updated/deleted
+timestamps, the key version, and the target device of a direct send. The whole
+`devices` table (names, platforms, roles, public keys, presence) is plaintext
+by design, because membership has to be verifiable without the passphrase.
+
+`content_hash` is a *keyed* fingerprint on encrypted rows —
+`HMAC-SHA256(HMAC-SHA256(key, "clipsync/content-hash/v1"), plaintext)`. A bare
+SHA-256 of the plaintext, which is what earlier versions stored, let anyone
+with read access confirm a guess or run a dictionary against short clips such
+as one-time codes and passwords. Devices in the group still de-duplicate on
+it; nobody else learns anything from it.
+
+Turning encryption on seals what is written next — it does not reach back over
+history. Settings → Privacy counts the clips written before the group was
+secured and offers to clear them; until that is done they stay readable.
+
+Integrity and availability are a separate matter from confidentiality: a
+holder of the credentials can still delete rows or add junk. Signatures mean
+other devices will not *believe* forged clips or membership changes, but
+nothing stops the writes themselves. Scope the database keys as tightly as
+your backend allows.
 - The repository refuses secrets at commit time (gitleaks + pre-commit) and in
   CI (full-history scan). All Actions are SHA-pinned.

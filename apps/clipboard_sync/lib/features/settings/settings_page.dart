@@ -91,7 +91,10 @@ class SettingsPage extends ConsumerWidget {
                   ),
                 ],
               ),
-              const SectionCard(title: 'Privacy', children: [_EncryptionRow()]),
+              const SectionCard(
+                title: 'Privacy',
+                children: [_EncryptionRow(), _PlaintextRow()],
+              ),
               SectionCard(
                 title: 'Appearance',
                 children: [
@@ -482,6 +485,116 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Warns when clips written before the group was encrypted are still sitting
+/// readable in the database, and offers to clear them.
+class _PlaintextRow extends ConsumerStatefulWidget {
+  const _PlaintextRow();
+
+  @override
+  ConsumerState<_PlaintextRow> createState() => _PlaintextRowState();
+}
+
+class _PlaintextRowState extends ConsumerState<_PlaintextRow> {
+  int? _count;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_scan());
+  }
+
+  Future<void> _scan() async {
+    if (!ref.read(settingsProvider).encryptionEnabled) {
+      if (mounted) setState(() => _count = 0);
+      return;
+    }
+    final stale = await ref
+        .read(syncControllerProvider.notifier)
+        .plaintextClips();
+    if (mounted) setState(() => _count = stale.length);
+  }
+
+  Future<void> _purge() async {
+    final n = _count ?? 0;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        key: const ValueKey('purge-plaintext-dialog'),
+        icon: Icon(
+          Icons.lock_reset_rounded,
+          color: Theme.of(ctx).colorScheme.error,
+        ),
+        title: const Text('Clear unencrypted clips?'),
+        content: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: Text(
+            '$n ${n == 1 ? 'clip was' : 'clips were'} written before this group '
+            'was encrypted, so anyone with the database credentials can read '
+            '${n == 1 ? 'it' : 'them'}. Clearing empties the stored text on '
+            'every device and in the database. This cannot be undone.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Keep them'),
+          ),
+          FilledButton(
+            key: const ValueKey('purge-plaintext-confirm'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear them'),
+          ),
+        ],
+      ),
+    );
+    if (!(confirmed ?? false)) return;
+
+    setState(() => _busy = true);
+    try {
+      final cleared = await ref
+          .read(syncControllerProvider.notifier)
+          .purgePlaintextClips();
+      if (mounted) {
+        setState(() => _count = 0);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Cleared $cleared unencrypted clip(s).')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not clear them: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final n = _count ?? 0;
+    if (n == 0) return const SizedBox.shrink();
+    final scheme = Theme.of(context).colorScheme;
+    return SettingRow(
+      key: const ValueKey('plaintext-warning'),
+      icon: Icons.lock_open_rounded,
+      tint: scheme.error,
+      title: '$n clip${n == 1 ? '' : 's'} still readable in the database',
+      subtitle:
+          'Written before this group was encrypted. Clearing empties them.',
+      trailing: _busy
+          ? const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : TextButton(onPressed: _purge, child: const Text('Clear')),
     );
   }
 }
