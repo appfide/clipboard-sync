@@ -1,3 +1,5 @@
+<img src="docs/icon.png" width="96" alt="Clipboard Sync">
+
 # Clipboard Sync
 
 [![CI](https://github.com/appfide/clipboard-sync/actions/workflows/ci.yml/badge.svg)](https://github.com/appfide/clipboard-sync/actions/workflows/ci.yml)

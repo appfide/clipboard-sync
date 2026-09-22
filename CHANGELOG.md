@@ -6,6 +6,9 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Changed
+- New app icon: a clipboard with a sync loop knocked out of it, on the blue tile the app already themes with. It replaces the stock Flutter icon on Android, iOS, macOS and Windows and the placeholder tray mark, and Android now ships an adaptive icon (gradient background, safe-zone foreground, themed monochrome layer) instead of one flat square. `scripts/gen_icons.py` renders every size from the vector sources in `design/icon/`; `--check` verifies the committed files still match.
+
 ## [0.2.1] - 2026-09-11
 
 ### Security
