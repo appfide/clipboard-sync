@@ -6,6 +6,8 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-23
+
 ### Changed
 - **The app is now called Nija.** निज (*nija*) is Sanskrit for "one's own" — the name says what the product is: your clipboard, on your database, under your keys. The About page and the README explain it. Nothing about how syncing, encryption or pairing works has changed.
 - **Bundle identifiers are now `com.appfide.nija`** on every platform (from `com.appfide.clipboardSync` / `com.appfide.clipboard_sync`). The operating system treats a new identifier as a different app, so **0.3.0 will not upgrade in place**: install Nija, pair it as you would a new device, and remove the old app afterwards. Local history kept by the old install stays in its own sandbox and is not carried over; anything already in your database syncs back down on first run.
@@ -87,7 +89,9 @@ All notable changes to this project are documented here. Format follows
 - Android app data excluded from cloud backup and device transfer.
 - Repository gates: gitleaks + pre-commit locally, full-history secret scan in CI, SHA-pinned actions, branch and tag rulesets.
 
-[Unreleased]: https://github.com/appfide/nija/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/appfide/nija/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/appfide/nija/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/appfide/nija/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/appfide/nija/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/appfide/nija/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/appfide/nija/releases/tag/v0.1.0
