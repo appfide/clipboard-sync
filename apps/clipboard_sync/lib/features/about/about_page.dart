@@ -3,6 +3,7 @@ import 'package:clipboard_sync/ui/app_theme.dart';
 import 'package:clipboard_sync/ui/widgets/brand_mark.dart';
 import 'package:clipboard_sync/ui/widgets/section_card.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 /// About Clipboard Sync and Appfide, the studio behind it.
@@ -24,6 +25,18 @@ class AboutPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
             children: [
               Text('About', style: theme.textTheme.headlineSmall),
+              const SizedBox(height: 16),
+              // ---- Other devices ------------------------------------------
+              Card(
+                clipBehavior: Clip.antiAlias,
+                child: SettingRow(
+                  icon: Icons.devices_rounded,
+                  title: 'Get it on your other devices',
+                  subtitle:
+                      'Installers for macOS, Windows, Linux, Android and iOS',
+                  onTap: () => context.push('/about/downloads'),
+                ),
+              ),
               const SizedBox(height: 16),
               // ---- App ----------------------------------------------------
               Card(

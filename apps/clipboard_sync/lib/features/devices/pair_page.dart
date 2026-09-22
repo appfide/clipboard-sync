@@ -367,6 +367,16 @@ class _Steps extends StatelessWidget {
               ],
             ),
           ),
+        // Step 1 assumes the app is already installed over there.
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const ValueKey('pair-get-app'),
+            onPressed: () => context.push('/about/downloads'),
+            icon: const Icon(Icons.devices_rounded, size: 18),
+            label: const Text('That device does not have the app yet'),
+          ),
+        ),
       ],
     );
   }

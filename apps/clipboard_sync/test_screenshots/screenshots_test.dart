@@ -10,6 +10,8 @@ import 'package:clipboard_sync/data/local/database.dart';
 import 'package:clipboard_sync/data/local/local_store.dart';
 import 'package:clipboard_sync/data/settings/app_settings.dart';
 import 'package:clipboard_sync/data/settings/secret_store.dart';
+import 'package:clipboard_sync/features/downloads/release_info.dart';
+import 'package:clipboard_sync/features/downloads/release_service.dart';
 import 'package:clipboard_sync/features/sync/sync_controller.dart';
 import 'package:clipboard_sync/providers.dart';
 import 'package:clipboard_sync/ui/app_theme.dart';
@@ -155,6 +157,37 @@ final List<Device> _devices = [
   _device('pending', 'Pending device', '', ago: Duration.zero, pending: true),
 ];
 
+/// A stand-in release, so the download shot never reaches for the network.
+final _release = ReleaseInfo(
+  version: '0.2.1',
+  htmlUrl: 'https://github.com/appfide/clipboard-sync/releases/tag/v0.2.1',
+  publishedAt: DateTime.now().toUtc().subtract(const Duration(days: 3)),
+  checksumsUrl:
+      'https://github.com/appfide/clipboard-sync/releases/download/v0.2.1/SHA256SUMS.txt',
+  assets: [
+    for (final (name, size) in [
+      ('ClipboardSync-0.2.1-macos.dmg', 41943040),
+      ('ClipboardSync-0.2.1-windows.exe', 33554432),
+      ('ClipboardSync-0.2.1-windows.zip', 31457280),
+      ('ClipboardSync-0.2.1-linux.deb', 29360128),
+      ('ClipboardSync-0.2.1-linux.AppImage', 52428800),
+      ('ClipboardSync-0.2.1-android.apk', 25165824),
+      ('ClipboardSync-0.2.1-ios-unsigned.ipa', 27262976),
+    ])
+      ReleaseInfo.fromJson({
+        'tag_name': 'v0.2.1',
+        'assets': [
+          {
+            'name': name,
+            'size': size,
+            'browser_download_url':
+                'https://github.com/appfide/clipboard-sync/releases/download/v0.2.1/$name',
+          },
+        ],
+      }).assets.single,
+  ],
+);
+
 Future<AppDatabase> _seededDb() async {
   final db = AppDatabase.withExecutor(NativeDatabase.memory());
   final store = DriftLocalStore(db);
@@ -266,6 +299,7 @@ void main() {
           syncControllerProvider.overrideWith(_LiveSync.new),
           deviceListProvider.overrideWith((ref) => Stream.value(_devices)),
           routerProvider.overrideWithValue(router),
+          latestReleaseProvider.overrideWith((ref) async => _release),
         ],
         child: MaterialApp.router(
           theme: AppTheme.light(),
@@ -394,6 +428,17 @@ void main() {
       name: 'about-desktop-dark',
       location: '/about',
       mode: ThemeMode.dark,
+      size: desktop,
+    ),
+  );
+  testWidgets(
+    'downloads desktop light',
+    timeout: const Timeout(Duration(seconds: 60)),
+    (t) => shot(
+      t,
+      name: 'downloads-desktop-light',
+      location: '/about/downloads',
+      mode: ThemeMode.light,
       size: desktop,
     ),
   );
