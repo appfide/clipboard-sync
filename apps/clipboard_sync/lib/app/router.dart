@@ -4,6 +4,7 @@ import 'package:clipboard_sync/features/devices/devices_page.dart';
 import 'package:clipboard_sync/features/devices/join_page.dart';
 import 'package:clipboard_sync/features/devices/pair_page.dart';
 import 'package:clipboard_sync/features/diagnostics/diagnostics_page.dart';
+import 'package:clipboard_sync/features/downloads/downloads_page.dart';
 import 'package:clipboard_sync/features/history/history_page.dart';
 import 'package:clipboard_sync/features/onboarding/onboarding_page.dart';
 import 'package:clipboard_sync/features/settings/backend_setup_page.dart';
@@ -78,6 +79,12 @@ GoRouter buildAppRouter({required bool onboarded, String? initialLocation}) {
           GoRoute(
             path: '/about',
             pageBuilder: (_, s) => _fade(s, const AboutPage()),
+            routes: [
+              GoRoute(
+                path: 'downloads',
+                builder: (_, _) => const DownloadsPage(),
+              ),
+            ],
           ),
         ],
       ),

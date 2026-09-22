@@ -13,6 +13,7 @@ Clipboard history that syncs across **macOS, Windows, Linux, Android and iOS** t
 - **Desktop-native** — runs in the tray, global hotkey, start at login.
 - **Devices** — pair a new device with a PIN-protected QR code, give it a role (send-only / receive-only), temporary access, block or remove it, or send a clip to one device only. See [`docs/devices.md`](docs/devices.md).
 - **Privacy filters** — honours password-manager "do not record" hints, can skip anything that looks like a key or token, and capture can be paused from the tray.
+- **Get it on the next device** — *About → Get it on your other devices* lists the current release's installer for macOS, Windows, Linux, Android and iOS, with a QR code per link so a phone can scan it straight off the desktop screen.
 - **Local-only mode** — works as a plain clipboard manager with no database at all.
 - **Enterprise repo hygiene** — secret scanning on every commit and in CI, SHA-pinned Actions, reproducible release builds with checksums.
 
@@ -26,9 +27,9 @@ Clipboard history that syncs across **macOS, Windows, Linux, Android and iOS** t
 |---|---|---|
 | ![Onboarding](docs/screenshots/onboarding-phone-light.png) | ![History phone](docs/screenshots/history-phone-dark.png) | ![Backend](docs/screenshots/backend-desktop-light.png) |
 
-| Devices (desktop) | Devices (phone, dark) |
-|---|---|
-| ![Devices](docs/screenshots/devices-desktop-light.png) | ![Devices phone](docs/screenshots/devices-phone-dark.png) |
+| Devices (desktop) | Devices (phone, dark) | Downloads |
+|---|---|---|
+| ![Devices](docs/screenshots/devices-desktop-light.png) | ![Devices phone](docs/screenshots/devices-phone-dark.png) | ![Downloads](docs/screenshots/downloads-desktop-light.png) |
 
 ## Install
 
