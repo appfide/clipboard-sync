@@ -29,4 +29,6 @@ export 'src/sync/local_store.dart';
 export 'src/sync/sync_engine.dart';
 export 'src/sync/sync_status.dart';
 export 'src/util/hashing.dart';
+export 'src/util/http_errors.dart'
+    show describeNetworkFailure, toBackendException;
 export 'src/util/redact.dart';
