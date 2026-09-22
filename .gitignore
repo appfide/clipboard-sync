@@ -37,6 +37,9 @@ id_ed25519*
 # Platform credential/config files
 key.properties
 **/key.properties
+# Written by the release workflow from the Developer ID secrets.
+Signing.xcconfig
+**/Signing.xcconfig
 local.properties
 **/local.properties
 google-services.json

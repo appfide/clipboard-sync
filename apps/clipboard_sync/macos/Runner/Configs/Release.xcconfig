@@ -1,2 +1,10 @@
 #include "../../Flutter/Flutter-Release.xcconfig"
 #include "Warnings.xcconfig"
+
+// Ad-hoc by default, exactly as the Xcode project used to hardcode it, so
+// `flutter build macos` needs no certificate. The release workflow writes
+// Signing.xcconfig (gitignored) from the Developer ID secrets when they are
+// set; it switches to manual signing with that identity and turns on the
+// hardened runtime notarization requires. See docs/release.md.
+CODE_SIGN_IDENTITY = -
+#include? "Signing.xcconfig"
