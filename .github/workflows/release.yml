@@ -71,8 +71,9 @@ jobs:
           - { os: ubuntu-latest,  target: android, platform: android, targets: "apk,aab" }
     env:
       VERSION: ${{ needs.version.outputs.version }}
-      # Job level, so the signing steps can test it in their own `if`.
+      # Job level, so the signing steps can test these in their own `if`.
       MACOS_SIGNING: ${{ secrets.MACOS_CERT_P12_BASE64 != '' }}
+      ANDROID_SIGNING: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
     steps:
       - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         if: runner.os == 'Linux'
@@ -110,7 +111,7 @@ jobs:
         run: npm install -g appdmg
 
       - name: Android signing key (optional)
-        if: matrix.target == 'android' && env.ANDROID_KEYSTORE_BASE64 != ''
+        if: matrix.target == 'android' && env.ANDROID_SIGNING == 'true'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
