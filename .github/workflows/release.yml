@@ -309,14 +309,16 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      # Built here rather than by a scanner action: the repository restricts
+      # which Actions may run, and that allowlist is worth more than the
+      # convenience of pulling in a third-party one.
       - name: Software bill of materials
-        uses: anchore/sbom-action@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26 # v0.24.2
-        with:
-          path: .
-          format: spdx-json
-          artifact-name: nija-${{ needs.version.outputs.version }}-sbom.spdx.json
-          output-file: artifacts/nija-${{ needs.version.outputs.version }}-sbom.spdx.json
-          upload-release-assets: false
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          python3 scripts/generate_sbom.py "$VERSION" \
+            "artifacts/nija-$VERSION-sbom.spdx.json"
 
       - name: Checksums
         run: |
