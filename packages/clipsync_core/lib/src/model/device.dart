@@ -69,9 +69,9 @@ enum DeviceRole {
 ///
 /// Two kinds of fields live on a device row:
 ///
-/// * **Presence** (`name`, `platform`, `last_seen`, `app_version`) — written
+/// * **Presence** (`name`, `platform`, `last_seen`, `app_version`), written
 ///   by the device itself on every heartbeat via `SyncBackend.registerDevice`.
-/// * **Membership** (`status`, `role`, `expires_at`, `paired_by`) — written by
+/// * **Membership** (`status`, `role`, `expires_at`, `paired_by`), written by
 ///   whichever device manages the group via `SyncBackend.updateDevice`. A
 ///   heartbeat must never overwrite these.
 @immutable
@@ -243,7 +243,7 @@ class Device {
     'key_envelope': keyEnvelope,
   };
 
-  /// Only the presence fields — what a heartbeat is allowed to write.
+  /// Only the presence fields, what a heartbeat is allowed to write.
   /// Public keys are included only when set and [includeKeys] is true.
   Map<String, Object?> presenceMap({bool includeKeys = true}) =>
       <String, Object?>{
@@ -300,7 +300,7 @@ class Device {
   );
 
   /// Returns a copy with presence fields taken from [presence] and
-  /// membership fields kept — how backends merge a heartbeat into an
+  /// membership fields kept, how backends merge a heartbeat into an
   /// existing row.
   Device withPresence(Device presence) => copyWith(
     name: presence.name,

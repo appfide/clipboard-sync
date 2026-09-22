@@ -103,7 +103,7 @@ class HistoryPage extends ConsumerWidget {
                           icon: Icons.content_paste_search_rounded,
                           title: 'Nothing here yet',
                           message: PlatformInfo.isDesktop
-                              ? 'Copy anything — it shows up here and syncs to your other devices.'
+                              ? 'Copy anything: it shows up here and syncs to your other devices.'
                               : 'Copy something, then open the app or tap Capture.',
                           action: PlatformInfo.isMobile
                               ? FilledButton.icon(

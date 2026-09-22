@@ -20,8 +20,8 @@ of that model are.
 
 What travels inside the code: the database type and settings (including the
 secret fields), a device id **and identity keys** chosen by the host, the
-admin public key to pin, the role and expiry, the host's name, and — only
-with *Can manage devices* — the admin key. The encryption passphrase never
+admin public key to pin, the role and expiry, the host's name, and, only
+with *Can manage devices*, the admin key. The encryption passphrase never
 travels in the code: with *Share encryption passphrase* on, the host seals it
 to the new device's key inside its device row.
 
@@ -37,7 +37,7 @@ Rules the app follows around codes:
 
 - The pairing code is copied to the clipboard **without** being recorded in
   history, and a pairing code that appears on any device's clipboard is never
-  captured — so credentials cannot leak into the shared history.
+  captured, so credentials cannot leak into the shared history.
 - The passphrase is delivered sealed to the new device only when you switch
   *Share encryption passphrase* on; otherwise it is typed on the new device.
 - Treat the code like the database password it contains: show it only to the
@@ -49,7 +49,7 @@ It generates the new device's keys, writes a *pending* row to the `devices`
 table with the id, public keys, role, expiry, `paired_by` (and, in a signed
 group, the admin signature and sealed passphrase). The list shows it as **Invited · waiting**.
 When the joining device first checks in, it adopts that id and inherits the
-row — the host decided the access, not the joiner. If the code is never used,
+row: the host decided the access, not the joiner. If the code is never used,
 **Cancel invitation** (on the code screen) or **Forget** (in the list)
 deletes the row.
 
@@ -61,7 +61,7 @@ presence (online / last seen, platform, app version) and its membership.
 | Action | Effect |
 |---|---|
 | **Block** | Other devices ignore its clips. The device stops syncing on its next check-in (about a minute), deletes its copy of the credentials and passphrase, and shows a notice. Can be undone with **Unblock**. |
-| **Change role** | *Send & receive* (default), *Send only* (pushes its clips, never pulls history — a guest laptop), *Receive only* (pulls, never pushes — a display machine). Applied on the device's next check-in. |
+| **Change role** | *Send & receive* (default), *Send only* (pushes its clips, never pulls history, like a guest laptop), *Receive only* (pulls, never pushes, like a display machine). Applied on the device's next check-in. |
 | **Access duration** | Sets `expires_at`. When it passes, the device disconnects itself the same way as a block, and other devices stop applying its clips. |
 | **Remove** | Like block, but permanent: the row stays as a tombstone so the device learns it was removed. |
 | **Forget** | Deletes the row. Use after the device has disconnected (or for unused invitations). A device that is still running notices the missing row and disconnects with "removed". |
@@ -75,7 +75,7 @@ single device (`target_device_id`). Every other device skips it on pull. The
 copy is hidden in the sender's history; the receiver sees it with a
 "sent only to this device" mark.
 
-## How access is enforced — read this
+## How access is enforced: read this
 
 All devices in a group hold the **same** database credentials, so the
 database itself cannot tell them apart. Clipboard Sync therefore enforces
@@ -133,7 +133,7 @@ What the model does **not** cover:
 - The **admin key** is the root of trust. Losing the admin device means
   setting the group up again; an attacker who obtains it controls
   membership. The pairing option *Can manage devices* copies it to another
-  device — use deliberately.
+  device: use deliberately.
 - **Trust on first use**: a member of a legacy group that sees a new admin
   key is asked to compare the fingerprint with the admin device. Accepting
   a fingerprint you did not check hands the group to whoever wrote that row.

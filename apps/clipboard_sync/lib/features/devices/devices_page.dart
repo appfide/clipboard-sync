@@ -136,13 +136,13 @@ class _DevicesPageState extends ConsumerState<DevicesPage> {
       context,
       title: 'Secure this group?',
       message:
-          'This device becomes the group admin: it generates a signing key, signs every current device, and from now on only it can add, block or remove devices. Other devices will ask you to confirm the key fingerprint once. Keep this device — losing it means setting the group up again.',
+          'This device becomes the group admin: it generates a signing key, signs every current device, and from now on only it can add, block or remove devices. Other devices will ask you to confirm the key fingerprint once. Keep this device; losing it means setting the group up again.',
       action: 'Secure',
     );
     if (!ok) return;
     await _run(
       () => ref.read(syncControllerProvider.notifier).secureGroup(),
-      'Group secured — check the fingerprint on your other devices',
+      'Group secured: check the fingerprint on your other devices',
     );
   }
 
@@ -262,7 +262,7 @@ class _DevicesPageState extends ConsumerState<DevicesPage> {
                         padding: const EdgeInsets.only(bottom: 12),
                         child: Text(
                           status.lastError ??
-                              'Not connected — device management needs a working connection.',
+                              'Not connected: device management needs a working connection.',
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.error,
                           ),
@@ -364,7 +364,7 @@ class _SecurityCard extends StatelessWidget {
         : (selfVerified ? c.success : scheme.error);
     final title = !signed
         ? 'Not secured'
-        : (selfVerified ? 'Secured' : 'Secured — this device is unverified');
+        : (selfVerified ? 'Secured' : 'Secured: this device is unverified');
     final detail = !signed
         ? 'Membership is cooperative: anyone with the database credentials can pose as a device.'
         : selfVerified

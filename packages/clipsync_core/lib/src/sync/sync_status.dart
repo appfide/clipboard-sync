@@ -53,7 +53,7 @@ class SyncStatus {
   /// Items waiting in the outbox.
   final int pendingCount;
 
-  /// Credentials rejected — retries paused until settings change.
+  /// Credentials rejected; retries paused until settings change.
   final bool authFailed;
 
   /// Whether a realtime subscription is active.

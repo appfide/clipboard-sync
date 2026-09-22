@@ -13,7 +13,7 @@ import 'package:win32/win32.dart';
 /// | macOS | `org.nspasteboard.ConcealedType` / `TransientType` pasteboard types (nspasteboard.org) |
 /// | Windows | `ExcludeClipboardContentFromMonitorProcessing` clipboard format |
 /// | Android 13+ | `ClipDescription.EXTRA_IS_SENSITIVE` |
-/// | Linux, iOS | no standard hint — always `false` |
+/// | Linux, iOS | no standard hint: always `false` |
 abstract final class ClipboardHints {
   static const MethodChannel _channel = MethodChannel(
     'com.appfide.clipboard_sync/clipboard',

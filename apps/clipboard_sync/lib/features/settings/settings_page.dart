@@ -55,7 +55,7 @@ class SettingsPage extends ConsumerWidget {
                     icon: Icons.timer_outlined,
                     title: 'Poll interval',
                     subtitle: (descriptor?.supportsRealtime ?? false)
-                        ? 'Realtime backend — used only as fallback'
+                        ? 'Realtime backend: used only as fallback'
                         : 'How often to check for changes',
                     trailing: _Dropdown<int>(
                       value: s.pollIntervalSeconds,
@@ -123,7 +123,7 @@ class SettingsPage extends ConsumerWidget {
                         : Icons.pause_circle_outline_rounded,
                     title: 'Pause capture',
                     subtitle: s.capturePaused
-                        ? 'Paused — nothing is recorded or synced'
+                        ? 'Paused: nothing is recorded or synced'
                         : 'Temporarily stop recording the clipboard',
                     value: s.capturePaused,
                     onChanged: (v) =>
@@ -228,7 +228,7 @@ class SettingsPage extends ConsumerWidget {
                     title: 'Manage devices',
                     subtitle: s.syncsRemotely
                         ? '${devices.length} in this group · block, remove, roles, expiry'
-                        : 'Local only — no sync group',
+                        : 'Local only: no sync group',
                     onTap: () => context.push('/settings/devices'),
                   ),
                   SettingRow(
@@ -325,7 +325,7 @@ class _DegradedBanner extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(
               child: Text(
-                'OS credential store unavailable — database credentials are kept in app preferences instead of the system keychain. See Diagnostics.',
+                'OS credential store unavailable; database credentials are kept in app preferences instead of the system keychain. See Diagnostics.',
                 style: Theme.of(
                   context,
                 ).textTheme.bodySmall?.copyWith(color: scheme.onErrorContainer),
@@ -461,7 +461,7 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
               : Icons.lock_open_rounded,
           title: 'End-to-end encryption',
           subtitle: s.encryptionEnabled
-              ? 'On · key v${status.keyVersion} · fingerprint ${_fingerprint ?? '…'} — must match on every device'
+              ? 'On · key v${status.keyVersion} · fingerprint ${_fingerprint ?? '…'}: must match on every device'
               : 'Off · the database can read your clipboard',
           value: s.encryptionEnabled,
           onChanged: _toggle,
@@ -472,7 +472,7 @@ class _EncryptionRowState extends ConsumerState<_EncryptionRow> {
             icon: Icons.visibility_outlined,
             title: 'Show passphrase',
             subtitle:
-                'Only needed to join by typing credentials — pairing delivers it sealed',
+                'Only needed to join by typing credentials; pairing delivers it sealed',
             tint: c.muted,
             onTap: _reveal,
           ),

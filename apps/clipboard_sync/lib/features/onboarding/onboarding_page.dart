@@ -56,7 +56,7 @@ class OnboardingPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      'Clipboard Sync keeps history across macOS, Windows, Linux, Android and iOS — '
+                      'Clipboard Sync keeps history across macOS, Windows, Linux, Android and iOS, '
                       'synced through a database you own. No accounts, no middleman.',
                       style: theme.textTheme.bodyLarge?.copyWith(
                         color: c.muted,
@@ -76,7 +76,7 @@ class OnboardingPage extends StatelessWidget {
                     const _Point(
                       Icons.code_rounded,
                       'Open source',
-                      'MIT licensed — github.com/appfide/clipboard-sync',
+                      'MIT licensed: github.com/appfide/clipboard-sync',
                     ),
                     const Spacer(),
                     FilledButton.icon(

@@ -34,7 +34,7 @@ class SettingsRepository {
   /// Loads settings, creating the device id on first launch.
   ///
   /// With [includeSecrets] false, sensitive backend fields are left out so
-  /// the call never touches the OS credential store — bootstrap uses this so
+  /// the call never touches the OS credential store; bootstrap uses this so
   /// a keychain prompt cannot block the first frame; secrets are merged in
   /// afterwards with [loadBackendValues].
   Future<AppSettings> load({bool includeSecrets = true}) async {

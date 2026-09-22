@@ -49,7 +49,7 @@ class DiagnosticsPage extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Logs copied — secrets redacted'),
+                      content: Text('Logs copied: secrets redacted'),
                     ),
                   );
                 }

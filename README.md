@@ -8,14 +8,14 @@
 
 Clipboard history that syncs across **macOS, Windows, Linux, Android and iOS** through a database **you** provide. There is no Appfide server in the loop: the app talks directly to your Supabase, PocketBase, CouchDB, Firestore or MongoDB with the credentials you enter in Settings.
 
-- **Bring your own database** — each backend has its own schema and settings form; setup guides in [`docs/backends/`](docs/backends).
-- **End-to-end encryption** (optional) — Argon2id-derived AES-256-GCM; the database only ever sees ciphertext.
-- **Desktop-native** — runs in the tray, global hotkey, start at login.
-- **Devices** — pair a new device with a PIN-protected QR code, give it a role (send-only / receive-only), temporary access, block or remove it, or send a clip to one device only. See [`docs/devices.md`](docs/devices.md).
-- **Privacy filters** — honours password-manager "do not record" hints, can skip anything that looks like a key or token, and capture can be paused from the tray.
-- **Get it on the next device** — *About → Get it on your other devices* lists the current release's installer for macOS, Windows, Linux, Android and iOS, with a QR code per link so a phone can scan it straight off the desktop screen.
-- **Local-only mode** — works as a plain clipboard manager with no database at all.
-- **Enterprise repo hygiene** — secret scanning on every commit and in CI, SHA-pinned Actions, reproducible release builds with checksums.
+- **Bring your own database**: each backend has its own schema and settings form; setup guides in [`docs/backends/`](docs/backends).
+- **End-to-end encryption** (optional): Argon2id-derived AES-256-GCM; the database only ever sees ciphertext.
+- **Desktop-native**: runs in the tray, global hotkey, start at login.
+- **Devices**: pair a new device with a PIN-protected QR code, give it a role (send-only / receive-only), temporary access, block or remove it, or send a clip to one device only. See [`docs/devices.md`](docs/devices.md).
+- **Privacy filters**: honours password-manager "do not record" hints, can skip anything that looks like a key or token, and capture can be paused from the tray.
+- **Get it on the next device**: *About → Get it on your other devices* lists the current release's installer for macOS, Windows, Linux, Android and iOS, with a QR code per link so a phone can scan it straight off the desktop screen.
+- **Local-only mode**: works as a plain clipboard manager with no database at all.
+- **Enterprise repo hygiene**: secret scanning on every commit and in CI, SHA-pinned Actions, reproducible release builds with checksums.
 
 ## Screenshots
 
@@ -33,7 +33,7 @@ Clipboard history that syncs across **macOS, Windows, Linux, Android and iOS** t
 
 ## Install
 
-Download the latest installer from [Releases](https://github.com/appfide/clipboard-sync/releases): `.dmg`, `.exe`, `.deb` / `.AppImage`, `.apk`, unsigned `.ipa`. Builds are currently unsigned — see [docs/release.md](docs/release.md#installing-unsigned-builds).
+Download the latest installer from [Releases](https://github.com/appfide/clipboard-sync/releases): `.dmg`, `.exe`, `.deb` / `.AppImage`, `.apk`, unsigned `.ipa`. Builds are currently unsigned; see [docs/release.md](docs/release.md#installing-unsigned-builds).
 
 ## Set up a database
 

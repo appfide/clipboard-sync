@@ -191,7 +191,7 @@ Future<void> _showTrust(
             Text(
               '${t.adminDeviceName.isEmpty ? 'A device' : t.adminDeviceName} secured this sync group with an admin key. '
               'Open Settings → Devices on that device and compare the fingerprint before trusting it. '
-              'If it does not match, do not trust — someone with your database credentials may be trying to take over the group.',
+              'If it does not match, do not trust: someone with your database credentials may be trying to take over the group.',
             ),
             const SizedBox(height: 16),
             Center(
@@ -215,7 +215,7 @@ Future<void> _showTrust(
         FilledButton(
           key: const ValueKey('trust-accept'),
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Fingerprint matches — trust'),
+          child: const Text('Fingerprint matches, trust'),
         ),
       ],
     ),

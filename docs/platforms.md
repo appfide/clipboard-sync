@@ -6,12 +6,12 @@ shows the same guidance in-app together with a live **Test** button.
 
 | | Background capture | Global hotkey | Start at login | OS permission prompts |
 |---|---|---|---|---|
-| macOS | Yes — polls `NSPasteboard.changeCount`, reads on change | Yes (Carbon `RegisterEventHotKey`, no Accessibility access needed) | Launch Agent in `~/Library/LaunchAgents` | Possible one-time pasteboard prompt on macOS 26+; Local Network prompt for LAN databases; keychain prompt on unsigned builds (see below) |
-| Windows | Yes — `AddClipboardFormatListener` | Yes (`RegisterHotKey`) | `HKCU\…\Run` value | None |
-| Linux (X11 / XWayland) | Yes — GTK clipboard polling | Yes (keybinder) | `~/.config/autostart/*.desktop` | None. Secret Service (GNOME Keyring / KWallet) used for credentials when present |
+| macOS | Yes: polls `NSPasteboard.changeCount`, reads on change | Yes (Carbon `RegisterEventHotKey`, no Accessibility access needed) | Launch Agent in `~/Library/LaunchAgents` | Possible one-time pasteboard prompt on macOS 26+; Local Network prompt for LAN databases; keychain prompt on unsigned builds (see below) |
+| Windows | Yes, `AddClipboardFormatListener` | Yes (`RegisterHotKey`) | `HKCU\…\Run` value | None |
+| Linux (X11 / XWayland) | Yes, GTK clipboard polling | Yes (keybinder) | `~/.config/autostart/*.desktop` | None. Secret Service (GNOME Keyring / KWallet) used for credentials when present |
 | Linux (native Wayland) | Only while focused | No | same | The app defaults to XWayland (`GDK_BACKEND=x11`); set `GDK_BACKEND=wayland` to override |
-| Android | No — Android 10+ serves clipboard reads only to the focused app | n/a | n/a | No permission exists. Android 12+ shows a "pasted from …" notice on each read |
-| iOS | No — never in background | n/a | n/a | "Allow Paste?" on reads of content from other apps unless *Settings → Clipboard Sync → Paste from Other Apps → Allow*; Local Network prompt for LAN databases |
+| Android | No, Android 10+ serves clipboard reads only to the focused app | n/a | n/a | No permission exists. Android 12+ shows a "pasted from …" notice on each read |
+| iOS | No: never in background | n/a | n/a | "Allow Paste?" on reads of content from other apps unless *Settings → Clipboard Sync → Paste from Other Apps → Allow*; Local Network prompt for LAN databases |
 
 ## Sensitive-content hints
 
@@ -24,7 +24,7 @@ reading the clipboard:
 | macOS | `org.nspasteboard.ConcealedType`, `org.nspasteboard.TransientType` |
 | Windows | `ExcludeClipboardContentFromMonitorProcessing` clipboard format |
 | Android 13+ | `ClipDescription.EXTRA_IS_SENSITIVE` |
-| iOS, Linux | no standard hint exists — use *Skip keys and tokens* or *Pause capture* |
+| iOS, Linux | no standard hint exists, use *Skip keys and tokens* or *Pause capture* |
 
 Pairing: scanning a QR code needs the camera (Android, iOS). Desktops paste
 the copied code instead.
@@ -42,7 +42,7 @@ prompt, and only reads when there is something to read.
 Credentials are stored in the login keychain. macOS binds each keychain item
 to the signature of the app that created it. Release builds are currently
 **unsigned** (ad-hoc signature), so after updating the app macOS shows
-"Clipboard Sync wants to use your confidential information stored in …" —
+"Clipboard Sync wants to use your confidential information stored in …",
 click **Always Allow**. The app never blocks on that prompt: startup reads
 only preferences, secrets are loaded after the first frame, and every
 keychain call is bounded by a 10 s timeout with a preferences fallback that

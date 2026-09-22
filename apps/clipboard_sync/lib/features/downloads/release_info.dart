@@ -78,7 +78,7 @@ class DownloadAsset {
 }
 
 /// What a release asset's file name says about it. Returns null for files that
-/// are not installers — `.aab` (a Play Store upload, not installable) and the
+/// are not installers: `.aab` (a Play Store upload, not installable) and the
 /// checksum list, which the page links separately.
 ({DownloadPlatform platform, String label, String? note})? _classify(
   String name,
@@ -88,7 +88,7 @@ class DownloadAsset {
     return (
       platform: DownloadPlatform.macos,
       label: 'Disk image (.dmg)',
-      note: 'Apple silicon — Intel Macs run it under Rosetta.',
+      note: 'Apple silicon, Intel Macs run it under Rosetta.',
     );
   }
   if (lower.endsWith('.exe')) {
@@ -102,7 +102,7 @@ class DownloadAsset {
     return (
       platform: DownloadPlatform.windows,
       label: 'Portable (.zip)',
-      note: 'Unpack and run — no installer, no admin rights.',
+      note: 'Unpack and run: no installer, no admin rights.',
     );
   }
   if (lower.endsWith('.deb')) {
@@ -116,7 +116,7 @@ class DownloadAsset {
     return (
       platform: DownloadPlatform.linux,
       label: 'AppImage',
-      note: 'Any distribution — mark it executable and run it.',
+      note: 'Any distribution: mark it executable and run it.',
     );
   }
   if (lower.endsWith('.apk')) {

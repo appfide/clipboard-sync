@@ -16,7 +16,7 @@ You will receive an acknowledgement within 72 hours and a fix or mitigation plan
 - Clipboard Sync talks **directly** to a database the user provisions. There is no Appfide server; Appfide never sees your data.
 - Database credentials are stored only in the OS credential store (Keychain / Keystore / DPAPI / libsecret) via `flutter_secure_storage`.
 - Optional end-to-end encryption (AES-256-GCM, Argon2id-derived key) means the database only ever holds ciphertext. Enable it for any shared or hosted database.
-- The credentials you enter are "client" credentials (Supabase anon key, PocketBase user, CouchDB user, Firebase web API key, MongoDB user). Scope them with the row-level / collection rules in `docs/backends/` — anyone with those credentials can read what the rules allow.
+- The credentials you enter are "client" credentials (Supabase anon key, PocketBase user, CouchDB user, Firebase web API key, MongoDB user). Scope them with the row-level / collection rules in `docs/backends/`: anyone with those credentials can read what the rules allow.
 
 ## Repository safeguards
 
@@ -38,5 +38,5 @@ Release integrity
 ## Threat model
 
 How devices, pairing codes, signatures and key rotation protect a sync
-group — and what they do not cover — is documented in
+group, and what they do not cover, is documented in
 [`docs/devices.md`](docs/devices.md#how-access-is-enforced--read-this).

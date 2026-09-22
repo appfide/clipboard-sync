@@ -230,7 +230,7 @@ void main() {
     expect(await _history(joiner), contains('after rotation'));
     expect(shared.items.values.where((i) => i.keyVersion == 2).length, 1);
 
-    // The removed tablet (its client wiped credentials) — even a rogue copy
+    // The removed tablet (its client wiped credentials), even a rogue copy
     // that kept v1 cannot read v2: prove via a raw ring.
     final rogueRing = await CipherRing.fromPassphrases(
       {1: 'v1 pass'},

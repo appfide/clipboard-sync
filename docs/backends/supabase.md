@@ -126,7 +126,7 @@ create policy "own objects" on storage.objects for all to authenticated
 | Items table / Devices table | `clip_items` / `devices` unless renamed |
 | Storage bucket | `clipboard` or empty |
 
-Never enter the `service_role` / `sb_secret_` key — it bypasses RLS.
+Never enter the `service_role` / `sb_secret_` key: it bypasses RLS.
 
 ## Retention
 

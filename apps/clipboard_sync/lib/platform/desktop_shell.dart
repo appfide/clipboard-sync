@@ -110,7 +110,7 @@ class DesktopShell with TrayListener, WindowListener {
     try {
       await trayManager.setContextMenu(_menu());
       await trayManager.setToolTip(
-        paused ? 'Clipboard Sync — capture paused' : 'Clipboard Sync',
+        paused ? 'Clipboard Sync: capture paused' : 'Clipboard Sync',
       );
     } catch (e) {
       log.w('tray update failed', error: e);

@@ -16,7 +16,7 @@
 - [ ] `pre-commit run --all-files` passes locally
 - [ ] `dart test` (core) and `flutter test` (app) pass
 - [ ] No credentials, API keys, project URLs, or personal data in the diff
-- [ ] No hardcoded backend endpoints — all DB config comes from Settings
+- [ ] No hardcoded backend endpoints; all DB config comes from Settings
 - [ ] New backend adapters include `docs/backends/<name>.md` with schema + setup
 - [ ] Tested on: <!-- macOS / Windows / Linux / Android / iOS -->
 

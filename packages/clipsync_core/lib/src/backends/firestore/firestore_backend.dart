@@ -16,10 +16,10 @@ import 'package:dio/dio.dart';
 /// email + password when provided, otherwise anonymous sign-in.
 ///
 /// All documents live under `users/{uid}/…` so the security rules in
-/// `docs/backends/firestore.md` isolate users by path — no `owner_id`
+/// `docs/backends/firestore.md` isolate users by path: no `owner_id`
 /// filter and therefore no composite index is needed for the cursor query.
 ///
-/// Polling only — the REST `Listen` endpoint requires gRPC streaming.
+/// Polling only: the REST `Listen` endpoint requires gRPC streaming.
 class FirestoreBackend implements SyncBackend {
   /// Creates an unconnected adapter.
   FirestoreBackend({Dio? dio, Dio? authDio})
