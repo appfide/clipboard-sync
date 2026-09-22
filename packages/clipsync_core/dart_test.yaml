@@ -1,4 +1,0 @@
-tags:
-  live:
-    # Runs only when CLIPSYNC_TEST_<BACKEND>_* env vars are set (tests skip themselves otherwise).
-    timeout: 2x

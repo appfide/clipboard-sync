@@ -6,6 +6,25 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-23
+
+### Changed
+- **The app is now called Nija.** निज (*nija*) is Sanskrit for "one's own" — the name says what the product is: your clipboard, on your database, under your keys. The About page and the README explain it. Nothing about how syncing, encryption or pairing works has changed.
+- **Bundle identifiers are now `com.appfide.nija`** on every platform (from `com.appfide.clipboardSync` / `com.appfide.clipboard_sync`). The operating system treats a new identifier as a different app, so **0.3.0 will not upgrade in place**: install Nija, pair it as you would a new device, and remove the old app afterwards. Local history kept by the old install stays in its own sandbox and is not carried over; anything already in your database syncs back down on first run.
+- **Pairing codes now start with `NIJA1.`** instead of `CSYNC1.`, and derive from a matching label. A device still running 0.3.0 cannot pair with one running this build — upgrade both.
+- The repository, the Flutter app and the core package are now `appfide/nija`, `apps/nija` and `packages/nija_core`. Live-backend tests read `NIJA_TEST_<BACKEND>_*` environment variables instead of `CLIPSYNC_TEST_*`.
+- Noto Sans Devanagari (SIL OFL 1.1) ships with the app so the name renders in its own script on every platform, not only where the OS happens to have a Devanagari face.
+
+### Added
+- **Every release is now verified before it is published.** `scripts/verify_artifacts.sh` opens each installer and checks it is the app it claims to be — bundle identifier `com.appfide.nija`, the version being released, a plausible binary size, and the signing state the release promises (Developer ID plus a notarization staple on macOS, a verified upload-key signature on Android). A build carrying the wrong identifier or last version's number now fails the release rather than reaching users.
+- **Build provenance.** Every published file carries a GitHub-signed attestation naming the workflow, commit and runner that produced it: `gh attestation verify <file> --repo appfide/nija`. A checksum only proves a file is intact; provenance proves where it came from, which matters because whoever can replace the file can replace the checksum beside it.
+- **An SPDX software bill of materials** ships with each release and is covered by `SHA256SUMS.txt`.
+- Release notes now lead with the CHANGELOG section for that version instead of only a list of commit subjects.
+- Releases are serialised: a second version bump queues behind the one in flight instead of racing it for the tag.
+
+### Unchanged (deliberately)
+- The passphrase-to-key derivation, the keyed content fingerprint and the key-envelope labels still carry their original `clipsync-*` v1 names. They are wire constants baked into data already sitting in users' databases: renaming them would make existing clips undecryptable and break de-duplication. The app's name is not part of its key schedule.
+
 ## [0.3.0] - 2026-09-22
 
 ### Added
@@ -65,12 +84,14 @@ All notable changes to this project are documented here. Format follows
 - Automated release builds: dmg, exe + zip, deb + AppImage, apk + aab, unsigned ipa, with `SHA256SUMS.txt`.
 
 ### Security
-- Threat model for multi-device groups documented in `docs/devices.md`, with an attacker test suite in `packages/clipsync_core/test/security`.
+- Threat model for multi-device groups documented in `docs/devices.md`, with an attacker test suite in `packages/nija_core/test/security`.
 - Credentials live in the OS credential store with a bounded, non-blocking fallback; secrets are never logged (all log lines are redacted).
 - Android app data excluded from cloud backup and device transfer.
 - Repository gates: gitleaks + pre-commit locally, full-history secret scan in CI, SHA-pinned actions, branch and tag rulesets.
 
-[Unreleased]: https://github.com/appfide/clipboard-sync/compare/v0.2.1...HEAD
-[0.2.1]: https://github.com/appfide/clipboard-sync/compare/v0.2.0...v0.2.1
-[0.2.0]: https://github.com/appfide/clipboard-sync/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/appfide/clipboard-sync/releases/tag/v0.1.0
+[Unreleased]: https://github.com/appfide/nija/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/appfide/nija/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/appfide/nija/compare/v0.2.1...v0.3.0
+[0.2.1]: https://github.com/appfide/nija/compare/v0.2.0...v0.2.1
+[0.2.0]: https://github.com/appfide/nija/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/appfide/nija/releases/tag/v0.1.0

@@ -9,9 +9,9 @@ CouchDB ≥ 3.0 and Cloudant.
 export COUCH=https://couch.example.com:5984
 export AUTH=admin:YOUR_PASSWORD          # admin only for setup
 
-curl -u $AUTH -X PUT $COUCH/clipboard_sync
+curl -u $AUTH -X PUT $COUCH/nija
 
-curl -u $AUTH -X POST $COUCH/clipboard_sync/_index \
+curl -u $AUTH -X POST $COUCH/nija/_index \
   -H 'Content-Type: application/json' \
   -d '{"index":{"fields":["kind","updated_at"]},"name":"kind-updated_at","type":"json"}'
 ```
@@ -34,7 +34,7 @@ curl -u $AUTH -X PUT $COUCH/_users/org.couchdb.user:alice \
   -H 'Content-Type: application/json' \
   -d '{"name":"alice","password":"YOUR_PASSWORD","roles":[],"type":"user"}'
 
-curl -u $AUTH -X PUT $COUCH/clipboard_sync/_security \
+curl -u $AUTH -X PUT $COUCH/nija/_security \
   -H 'Content-Type: application/json' \
   -d '{"admins":{"names":[],"roles":[]},"members":{"names":["alice"],"roles":[]}}'
 ```
@@ -47,7 +47,7 @@ API key and enter the key/password in the app.
 | Field | Value |
 |---|---|
 | Server URL | `https://couch.example.com:5984` |
-| Database name | `clipboard_sync` |
+| Database name | `nija` |
 | Username / Password | `alice` / … |
 
 Enable CORS if you also use the web build: `curl -u $AUTH -X PUT $COUCH/_node/_local/_config/httpd/enable_cors -d '"true"'`.
@@ -55,4 +55,4 @@ Enable CORS if you also use the web build: `curl -u $AUTH -X PUT $COUCH/_node/_l
 ## Retention
 
 The app's purge deletes old docs via `_bulk_docs`. Run periodic compaction:
-`curl -u $AUTH -X POST $COUCH/clipboard_sync/_compact`.
+`curl -u $AUTH -X POST $COUCH/nija/_compact`.

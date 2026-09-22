@@ -12,13 +12,13 @@ driver connection is the only serverless option. Polling only.
 
 Atlas → Database Access → Add user → *Built-in role: Read and write to any
 database* is too broad; choose **Specific privileges → readWrite on
-`clipboard_sync`**. Then Network Access → allow your devices' IPs (or
+`nija`**. Then Network Access → allow your devices' IPs (or
 `0.0.0.0/0` if they roam; then E2E encryption is mandatory).
 
 In `mongosh`:
 
 ```js
-use clipboard_sync
+use nija
 db.createCollection("clip_items")
 db.createCollection("devices")
 db.clip_items.createIndex({ updated_at: 1 })
@@ -37,9 +37,9 @@ and `sig`. No migration is needed from 0.1.0.
 
 | Field | Value |
 |---|---|
-| Connection string | `mongodb+srv://USER:PASSWORD@cluster0.xxxx.mongodb.net/clipboard_sync` |
+| Connection string | `mongodb+srv://USER:PASSWORD@cluster0.xxxx.mongodb.net/nija` |
 | Items / Devices collection | `clip_items` / `devices` |
 
-Self-hosted: `mongodb://USER:PASSWORD@host:27017/clipboard_sync?tls=true`.
+Self-hosted: `mongodb://USER:PASSWORD@host:27017/nija?tls=true`.
 Plain `mongodb://` without `tls=true` sends credentials unencrypted; only on
 a trusted LAN.

@@ -70,15 +70,15 @@ repos:
         exclude: \.(g|freezed|gr|drift)\.dart$
 
       - id: dart-analyze-core
-        name: dart analyze (packages/clipsync_core)
-        entry: scripts/analyze.sh packages/clipsync_core
+        name: dart analyze (packages/nija_core)
+        entry: scripts/analyze.sh packages/nija_core
         language: script
-        files: ^packages/clipsync_core/.*\.dart$
+        files: ^packages/nija_core/.*\.dart$
         pass_filenames: false
 
       - id: dart-analyze-app
-        name: flutter analyze (apps/clipboard_sync)
-        entry: scripts/analyze.sh apps/clipboard_sync
+        name: flutter analyze (apps/nija)
+        entry: scripts/analyze.sh apps/nija
         language: script
-        files: ^apps/clipboard_sync/.*\.dart$
+        files: ^apps/nija/.*\.dart$
         pass_filenames: false

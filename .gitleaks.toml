@@ -1,7 +1,7 @@
-# Gitleaks configuration for appfide/clipboard-sync.
+# Gitleaks configuration for appfide/nija.
 # Extends the built-in default ruleset and adds rules for every backend this
 # app can talk to. Runs in the pre-commit hook and in CI (full history scan).
-title = "clipboard-sync gitleaks config"
+title = "nija gitleaks config"
 
 [extend]
 useDefault = true

@@ -2,14 +2,14 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ apps/clipboard_sync (Flutter)                               │
+│ apps/nija (Flutter)                               │
 │  platform/   clipboard capture · tray · hotkeys · autostart │
 │  data/local  drift (SQLite): items + outbox + cursor        │
 │  features/   history · settings · devices (pair / manage)  │
 └───────────────┬─────────────────────────────────────────────┘
                 │ LocalStore, SyncBackend, ClipCipher
 ┌───────────────▼─────────────────────────────────────────────┐
-│ packages/clipsync_core (pure Dart)                          │
+│ packages/nija_core (pure Dart)                          │
 │  model/      ClipItem · Device (status/role/expiry)         │
 │  sync/       SyncEngine (push · pull · membership check)    │
 │  crypto/     ClipCipher · DeviceKeys · ClipSigning ·        │

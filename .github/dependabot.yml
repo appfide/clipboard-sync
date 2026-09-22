@@ -11,7 +11,7 @@ updates:
     labels: [dependencies, ci]
 
   - package-ecosystem: pub
-    directory: /packages/clipsync_core
+    directory: /packages/nija_core
     schedule:
       interval: weekly
       day: monday
@@ -27,7 +27,7 @@ updates:
       - dependency-name: collection
 
   - package-ecosystem: pub
-    directory: /apps/clipboard_sync
+    directory: /apps/nija
     schedule:
       interval: weekly
       day: monday
@@ -47,7 +47,7 @@ updates:
       - dependency-name: collection
 
   - package-ecosystem: gradle
-    directory: /apps/clipboard_sync/android
+    directory: /apps/nija/android
     schedule:
       interval: monthly
     labels: [dependencies, android]
