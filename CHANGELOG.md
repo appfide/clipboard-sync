@@ -6,6 +6,9 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+### Added
+- Release builds for macOS are signed with a Developer ID and notarized by Apple as soon as `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_PASSWORD` exist as repository secrets, which removes the *"Apple could not verify…"* dialog on download. Without the secrets nothing changes: the build stays ad-hoc signed. Setup steps in [`docs/release.md`](docs/release.md#macos-signing-and-notarization).
+
 ### Changed
 - New app icon: a clipboard with a sync loop knocked out of it, on the blue tile the app already themes with. It replaces the stock Flutter icon on Android, iOS, macOS and Windows and the placeholder tray mark, and Android now ships an adaptive icon (gradient background, safe-zone foreground, themed monochrome layer) instead of one flat square. `scripts/gen_icons.py` renders every size from the vector sources in `design/icon/`; `--check` verifies the committed files still match.
 

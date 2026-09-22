@@ -11,8 +11,8 @@
 
 | Platform | Artifact | Signed? |
 |---|---|---|
-| macOS | `ClipboardSync-<v>-macos.dmg` (arm64; Intel Macs run it via Rosetta) | No |
-| Windows | `…-windows.exe` (Inno Setup) + `.zip` portable | No |
+| macOS | `ClipboardSync-<v>-macos.dmg` (arm64; Intel Macs run it via Rosetta) | Developer ID + notarized once the Apple secrets are set (below); ad-hoc otherwise |
+| Windows | `…-windows.exe` (Inno Setup) + `.zip` portable | No — see [Windows signing](#windows-signing) |
 | Linux | `…-linux.deb`, `…-linux.AppImage` (x86_64) | n/a |
 | Android | `…-android.apk`, `.aab` | Debug key unless secrets set |
 | iOS | `ClipboardSync-<v>-ios-unsigned.ipa` | No — sideload with AltStore/Sideloadly or re-sign |
@@ -31,10 +31,82 @@
 | Secret | Purpose |
 |---|---|
 | `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Release-sign APK/AAB. Generate: `keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`, then `base64 -i upload-keystore.jks`. Without these, CI signs with the debug key — installable, but users cannot upgrade in place across releases. |
-| `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | Developer ID signing + notarization (not wired yet; see TODO in `release.yml`). |
-| `WINDOWS_CERT_PFX_BASE64`, `WINDOWS_CERT_PASSWORD` | Authenticode signing (not wired yet). |
+| `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | Developer ID signing + notarization. Wired; see [macOS signing and notarization](#macos-signing-and-notarization) for how to produce each one. All five must be present — the workflow skips signing entirely if `MACOS_CERT_P12_BASE64` is empty. |
 
 Never commit any of these files. `.gitignore`, gitleaks and `scripts/verify_secrets.sh` all reject them.
+
+## macOS signing and notarization
+
+Without this, macOS shows *"Apple could not verify 'Clipboard Sync.app' is free
+of malware"* and the only way in is right-click → *Open* or stripping the
+quarantine attribute. Removing that dialog needs a **paid Apple Developer
+Program membership** ($99/year) — there is no free path, and ad-hoc signing does
+not help. Everything else below is a one-time setup; after it, every release is
+signed and notarized automatically.
+
+Enrol as an individual and the Gatekeeper dialog shows your own name; enrolling
+as the Appfide organisation (needs a D-U-N-S number) makes it show *Appfide*.
+
+1. **Certificate.** Xcode → *Settings* → *Accounts* → your Apple ID → *Manage
+   Certificates* → **+** → *Developer ID Application*. It lands in the login
+   keychain.
+2. **Export it.** Keychain Access → *login* → *My Certificates* → right-click
+   *Developer ID Application: …* → *Export* → `.p12`, and set a password. Both
+   the private key and the certificate must be in the export (expand the row —
+   it should have a key under it).
+3. **Encode it.** `base64 -i certificate.p12 | pbcopy`, then delete the `.p12`;
+   `.gitignore`, gitleaks and `scripts/verify_secrets.sh` all reject it, but it
+   should not sit on disk either.
+4. **Team ID.** [developer.apple.com/account](https://developer.apple.com/account)
+   → *Membership details* → *Team ID* (10 characters).
+5. **App-specific password** for notarization:
+   [appleid.apple.com](https://appleid.apple.com) → *Sign-In and Security* →
+   *App-Specific Passwords* → **+**. This is not your Apple ID password.
+6. **Add the secrets** (repo → *Settings* → *Secrets and variables* → *Actions*,
+   or the CLI):
+
+   ```sh
+   base64 -i certificate.p12 | gh secret set MACOS_CERT_P12_BASE64
+   gh secret set MACOS_CERT_PASSWORD    # the .p12 export password
+   gh secret set APPLE_ID               # the Apple ID email
+   gh secret set APPLE_TEAM_ID          # 10-character team id
+   gh secret set APPLE_APP_PASSWORD     # app-specific password
+   ```
+
+What the release workflow then does, all on the macOS runner:
+
+- imports the `.p12` into a throwaway keychain and writes
+  `macos/Runner/Configs/Signing.xcconfig`, which switches the Release build to
+  manual signing with the Developer ID identity, the hardened runtime and a
+  secure timestamp;
+- builds and packages the dmg as usual, so every framework inside the bundle is
+  signed by Xcode's own embed phase;
+- signs the dmg, submits it to Apple with `notarytool --wait`, and prints the
+  notary log if the verdict is anything but `Accepted`;
+- staples the ticket to the dmg and runs `spctl --assess`, which is the check
+  the user's Mac performs;
+- deletes the keychain and the xcconfig, whether or not the job succeeded.
+
+Notarization usually takes a few minutes but Apple gives no guarantee, so the
+macOS job can sit waiting for a while. The certificate is valid for five years;
+the app-specific password lasts until you revoke it.
+
+Two things that follow from a stable signature: macOS stops asking to allow
+keychain access after every update, and the dmg can be opened by double-clicking
+like any other app.
+
+## Windows signing
+
+Not wired, and not a `.pfx` in a secret any more: since June 2023 public CAs
+must keep Authenticode keys on an HSM or hardware token, so there is no file to
+base64. The realistic options are [Azure Trusted
+Signing](https://learn.microsoft.com/azure/trusted-signing/) (about $10/month,
+designed for CI, individual accounts allowed) or an EV certificate on a cloud
+HSM (a few hundred dollars a year). SmartScreen also warms up on its own as a
+given binary gets downloaded.
+
+Until then the installer shows *Windows protected your PC* → *More info* →
+*Run anyway*.
 
 ## Local packaging
 
