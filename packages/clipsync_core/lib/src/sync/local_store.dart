@@ -6,7 +6,7 @@ import 'package:clipsync_core/src/sync/sync_engine.dart' show SyncEngine;
 /// drift/SQLite; tests use an in-memory version.
 ///
 /// Items live in one table; the *outbox* is the subset with
-/// `synced == false`. The engine never deletes rows — retention does.
+/// `synced == false`. The engine never deletes rows; retention does.
 abstract class LocalStore {
   /// Items captured locally that have not been pushed yet, oldest first.
   Future<List<ClipItem>> pendingOutbox({int limit = 100});

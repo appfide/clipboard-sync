@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 /// Renders a backend's settings form from its [BackendDescriptor.configSchema].
 ///
-/// Adding a database never touches this widget — every field, label, help
+/// Adding a database never touches this widget: every field, label, help
 /// text and validation rule comes from the descriptor.
 class BackendForm extends StatefulWidget {
   /// Creates the form.

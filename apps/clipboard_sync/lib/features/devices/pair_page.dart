@@ -104,7 +104,7 @@ class _PairPageState extends ConsumerState<PairPage> {
       ..clearSnackBars()
       ..showSnackBar(
         const SnackBar(
-          content: Text('Pairing code copied — it is not added to history'),
+          content: Text('Pairing code copied: it is not added to history'),
         ),
       );
   }
@@ -164,8 +164,8 @@ class _PairPageState extends ConsumerState<PairPage> {
                       icon: Icons.key_rounded,
                       title: 'Share encryption passphrase',
                       subtitle: _includePassphrase
-                          ? 'Sealed to the new device’s key and delivered through its device row — never inside the code.'
-                          : 'Off — you will type the passphrase on the new device.',
+                          ? 'Sealed to the new device’s key and delivered through its device row, never inside the code.'
+                          : 'Off: you will type the passphrase on the new device.',
                       value: _includePassphrase,
                       onChanged: (v) => setState(() => _includePassphrase = v),
                     ),
@@ -175,7 +175,7 @@ class _PairPageState extends ConsumerState<PairPage> {
                       title: 'Can manage devices',
                       subtitle: _grantAdmin
                           ? 'The admin key travels in this code. The new device can add, block and remove devices and rotate keys.'
-                          : 'Off — the new device is a member only.',
+                          : 'Off: the new device is a member only.',
                       value: _grantAdmin,
                       onChanged: (v) => setState(() => _grantAdmin = v),
                     ),
@@ -349,7 +349,7 @@ class _Steps extends StatelessWidget {
       if (session.encryption && !session.passphraseIncluded)
         'Enter the encryption passphrase when asked.',
       if (session.grantsAdmin)
-        'That device becomes an admin — treat the code accordingly.',
+        'That device becomes an admin; treat the code accordingly.',
     ];
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

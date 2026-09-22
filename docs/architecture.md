@@ -27,27 +27,27 @@
 
 ## Data flow
 
-1. **Capture** — platform clipboard watcher (desktop: polling change-count;
+1. **Capture**: platform clipboard watcher (desktop: polling change-count;
    mobile: on app resume / share sheet) produces a `ClipItem` with a SHA-256
    `content_hash`. It is written to the local drift table with `synced = false`.
-2. **Push** — `SyncEngine` drains unsynced rows in batches, optionally sealing
+2. **Push**: `SyncEngine` drains unsynced rows in batches, optionally sealing
    `content` with `ClipCipher`, and calls `backend.upsert`.
-3. **Pull** — `backend.pullSince(cursor)` returns rows from *other* devices
+3. **Pull**: `backend.pullSince(cursor)` returns rows from *other* devices
    ordered by `updated_at`; items are decrypted, echo-suppressed by hash, and
    applied last-writer-wins. The cursor advances to the max `updated_at`.
-4. **Realtime** — where the backend supports it (Supabase, PocketBase,
+4. **Realtime**: where the backend supports it (Supabase, PocketBase,
    CouchDB, memory), `watch()` events simply trigger step 3. Polling backends
    (Firestore, MongoDB) run step 3 on a timer.
-5. **Delete** — tombstone (`deleted_at`, content blanked). Rows are physically
+5. **Delete**: tombstone (`deleted_at`, content blanked). Rows are physically
    removed only by retention (`purgeBefore`).
-6. **Membership** — every minute (and before a sync older than that) the
+6. **Membership**: every minute (and before a sync older than that) the
    engine lists `devices`, refreshes its own presence row, verifies each
    row's admin signature and version, adopts its role and any key envelope
    addressed to it, and ignores clips from untrusted / blocked / expired
    devices and items addressed to another device. If its own signed row
    says blocked, removed or expired, it stops with `SyncPhase.revoked` and
    the app wipes credentials, passphrases and trust state.
-7. **Signing** — every pushed item is sealed (newest `CipherRing` key) and
+7. **Signing**: every pushed item is sealed (newest `CipherRing` key) and
    then signed with the device's Ed25519 key; every pulled item is verified
    against the sender's admin-signed public key before decryption. Threat
    model and limits: [devices.md](devices.md#how-access-is-enforced--read-this).
@@ -81,14 +81,14 @@ patterns to `.gitleaks.toml`.
 
 ### What a database holder can still see
 
-Encryption covers `content`, and nothing else. Anyone with the credentials —
-including the provider — sees, for every clip: the device id and name that
+Encryption covers `content`, and nothing else. Anyone with the credentials,
+including the provider, sees, for every clip: the device id and name that
 wrote it, the content type, the size in bytes, created/updated/deleted
 timestamps, the key version, and the target device of a direct send. The whole
 `devices` table (names, platforms, roles, public keys, presence) is plaintext
 by design, because membership has to be verifiable without the passphrase.
 
-`content_hash` is a *keyed* fingerprint on encrypted rows —
+`content_hash` is a *keyed* fingerprint on encrypted rows,
 `HMAC-SHA256(HMAC-SHA256(key, "clipsync/content-hash/v1"), plaintext)`. A bare
 SHA-256 of the plaintext, which is what earlier versions stored, let anyone
 with read access confirm a guess or run a dictionary against short clips such
@@ -101,7 +101,7 @@ old plain digest can have it rewritten as the keyed one. A device can only
 rewrite rows it wrote itself, since a clip's signature is verified against the
 writing device's key.
 
-Turning encryption on seals what is written next — it does not reach back over
+Turning encryption on seals what is written next; it does not reach back over
 history. Settings → Privacy counts the clips written before the group was
 secured and offers to clear them; until that is done they stay readable.
 

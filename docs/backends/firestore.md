@@ -2,7 +2,7 @@
 
 The app uses the Firestore **REST API** with Firebase Authentication tokens,
 so it works on every platform (the official plugin has no Linux support).
-Polling only — no realtime.
+Polling only: no realtime.
 
 ## 1. Create the project
 
@@ -14,8 +14,8 @@ Polling only — no realtime.
 
 Collections are created lazily; no schema to import. Documents:
 
-- `clip_items/{uuid}` — canonical fields (including `target_device_id`, `key_version`, `sig`), timestamps as `timestamp` values
-- `devices/{uuid}` — presence, membership, key and signature fields (see the schema reference in [devices.md](../devices.md)); no migration needed from 0.1.0
+- `clip_items/{uuid}`: canonical fields (including `target_device_id`, `key_version`, `sig`), timestamps as `timestamp` values
+- `devices/{uuid}`: presence, membership, key and signature fields (see the schema reference in [devices.md](../devices.md)); no migration needed from 0.1.0
 
 ## 2. Security rules
 
@@ -68,5 +68,5 @@ it in the OS keychain and the repo's secret scanner rejects it in source.
 ## Retention
 
 Enable a TTL policy: Firestore → *Time-to-live* → collection `clip_items`,
-field `updated_at`… no — TTL requires a dedicated field. Use the app's purge
+field `updated_at`… no, TTL requires a dedicated field. Use the app's purge
 setting, or set a Cloud Function on a schedule (outside this project's scope).

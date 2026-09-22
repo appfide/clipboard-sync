@@ -288,7 +288,7 @@ class _JoinPageState extends ConsumerState<JoinPage> {
                     payload.isSignedGroup
                         ? 'Signed · admin key ${keyFingerprint(payload.adminPub!)}'
                               '${payload.adminKey != null ? ' · this device becomes an admin' : ''}'
-                        : 'Not signed (legacy) — anyone with the credentials can pose as a device',
+                        : 'Not signed (legacy): anyone with the credentials can pose as a device',
                   ),
                   _Row(Icons.swap_vert_rounded, 'Role', payload.role.label),
                   _Row(

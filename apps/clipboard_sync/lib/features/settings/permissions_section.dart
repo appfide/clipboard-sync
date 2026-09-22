@@ -88,7 +88,7 @@ class _PermissionsSectionState extends ConsumerState<PermissionsSection> {
         (
           Icons.content_paste_rounded,
           'Clipboard',
-          'No permission needed. On macOS 26 and later the first read may show a one-time "wants to access the clipboard" prompt — choose Allow Always.',
+          'No permission needed. On macOS 26 and later the first read may show a one-time "wants to access the clipboard" prompt: choose Allow Always.',
           false,
         ),
         (
@@ -106,7 +106,7 @@ class _PermissionsSectionState extends ConsumerState<PermissionsSection> {
         (
           Icons.wifi_rounded,
           'Local network',
-          'Connecting to a database on your LAN triggers the Local Network prompt — allow it.',
+          'Connecting to a database on your LAN triggers the Local Network prompt; allow it.',
           false,
         ),
       ];
@@ -122,7 +122,7 @@ class _PermissionsSectionState extends ConsumerState<PermissionsSection> {
         (
           Icons.keyboard_rounded,
           'Global hotkey',
-          'Registered with Windows directly. If another app already owns the shortcut, registration fails silently — see Diagnostics.',
+          'Registered with Windows directly. If another app already owns the shortcut, registration fails silently; see Diagnostics.',
           false,
         ),
         (
@@ -194,7 +194,7 @@ class _PermissionsSectionState extends ConsumerState<PermissionsSection> {
         (
           Icons.wifi_rounded,
           'Local network',
-          'Connecting to a database on your LAN triggers the Local Network prompt — allow it.',
+          'Connecting to a database on your LAN triggers the Local Network prompt; allow it.',
           false,
         ),
       ];

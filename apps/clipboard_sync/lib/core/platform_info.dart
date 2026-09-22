@@ -2,11 +2,11 @@ import 'dart:io';
 
 /// Host platform helpers (no web support in this app).
 abstract final class PlatformInfo {
-  /// macOS, Windows or Linux — background capture, tray, hotkeys.
+  /// macOS, Windows or Linux: background capture, tray, hotkeys.
   static bool get isDesktop =>
       Platform.isMacOS || Platform.isWindows || Platform.isLinux;
 
-  /// Android or iOS — foreground capture only.
+  /// Android or iOS: foreground capture only.
   static bool get isMobile => Platform.isAndroid || Platform.isIOS;
 
   /// Wire value stored in `devices.platform`.

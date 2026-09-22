@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 ///
 /// Direction: minimal, professional developer utility. Inter typeface, slate
 /// neutrals, one blue primary, green reserved for "live/synced", subtle 1px
-/// borders instead of heavy elevation, 12–16 px radii, 200 ms transitions.
+/// borders instead of heavy elevation, 12-16 px radii, 200 ms transitions.
 /// Both schemes are explicit (not seeded) so contrast is controlled:
 /// body text ≥ 4.5:1, muted text ≥ 4.5:1 on surfaces.
 abstract final class AppTokens {

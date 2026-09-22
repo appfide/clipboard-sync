@@ -11,7 +11,7 @@ String redactSecrets(String input) {
 
 /// Whether [text] looks like a credential (API key, token, private key,
 /// connection string with a password…). Used by the capture filter so such
-/// clips never leave the device; deliberately conservative — plain prose is
+/// clips never leave the device; deliberately conservative, plain prose is
 /// never flagged.
 bool looksLikeSecret(String text) {
   if (text.length > 64 * 1024) return false;
@@ -36,7 +36,7 @@ final List<RegExp> _patterns = <RegExp>[
   RegExp('sb_(publishable|secret)_[A-Za-z0-9_-]{20,}'),
   // Google / Firebase API keys.
   RegExp('AIza[0-9A-Za-z_-]{35}'),
-  // AWS access key ids, GitHub tokens, Slack tokens, OpenAI-style keys.
+  // AWS access key ids, GitHub tokens, Slack tokens, `sk-` style API keys.
   RegExp('AKIA[0-9A-Z]{16}'),
   RegExp('gh[pousr]_[A-Za-z0-9]{36,}'),
   RegExp('xox[baprs]-[A-Za-z0-9-]{10,}'),

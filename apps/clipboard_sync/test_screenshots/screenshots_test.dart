@@ -213,7 +213,7 @@ Future<AppDatabase> _seededDb() async {
     ),
     _clip(
       '4',
-      'Meeting moved to 15:30 — same room. Bring the packaging checklist.',
+      'Meeting moved to 15:30, same room. Bring the packaging checklist.',
       device: 'iPhone',
       ago: const Duration(hours: 3),
     ),
@@ -241,7 +241,7 @@ Future<AppDatabase> _seededDb() async {
   await store.capture(
     _clip(
       '8',
-      'Just copied on this Mac — waiting to sync',
+      'Just copied on this Mac, waiting to sync',
       device: 'MacBook Pro',
       ago: Duration.zero,
     ),

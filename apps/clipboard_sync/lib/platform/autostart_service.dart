@@ -6,9 +6,9 @@ import 'package:win32_registry/win32_registry.dart';
 
 /// Registers the app to start at login on desktop platforms.
 ///
-/// * macOS — `~/Library/LaunchAgents/com.appfide.clipboardSync.plist`
-/// * Linux — `~/.config/autostart/clipboard-sync.desktop`
-/// * Windows — `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
+/// * macOS, `~/Library/LaunchAgents/com.appfide.clipboardSync.plist`
+/// * Linux, `~/.config/autostart/clipboard-sync.desktop`
+/// * Windows, `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 abstract final class AutostartService {
   static const _label = 'com.appfide.clipboardSync';
   static const _appName = 'ClipboardSync';

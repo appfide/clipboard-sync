@@ -69,7 +69,7 @@ class AboutPage extends StatelessWidget {
                       const SizedBox(height: 16),
                       Text(
                         'Your clipboard history, synced across devices through a database you own. '
-                        'No accounts, no middleman — the app talks directly to your Supabase, PocketBase, '
+                        'No accounts, no middleman: the app talks directly to your Supabase, PocketBase, '
                         'CouchDB, Firestore or MongoDB, with optional end-to-end encryption.',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: c.muted,

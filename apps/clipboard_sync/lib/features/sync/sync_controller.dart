@@ -750,7 +750,7 @@ class SyncController extends Notifier<SyncStatus> {
   Future<void> _onRevoked(String reason, String backendName) async {
     final s = ref.read(settingsProvider);
     if (!s.syncsRemotely) return;
-    log.w('access revoked ($reason) — forgetting $backendName credentials');
+    log.w('access revoked ($reason); forgetting $backendName credentials');
     final repo = ref.read(settingsRepositoryProvider);
     await repo.clearBackendValues(s.backendId);
     await repo.savePassphrase(null);

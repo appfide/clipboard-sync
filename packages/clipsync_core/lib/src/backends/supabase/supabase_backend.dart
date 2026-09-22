@@ -12,7 +12,7 @@ import 'package:supabase/supabase.dart';
 /// Supabase (Postgres + PostgREST + Realtime) adapter.
 ///
 /// Schema: two tables `clip_items` and `devices` (names configurable) with
-/// row-level security — see `docs/backends/supabase.md`. Talks to the
+/// row-level security; see `docs/backends/supabase.md`. Talks to the
 /// project's public API with the publishable/anon key; optional email +
 /// password sign-in scopes rows to that user via RLS.
 class SupabaseBackend implements SyncBackend {

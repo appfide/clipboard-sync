@@ -12,7 +12,7 @@ import 'package:meta/meta.dart';
 /// Produced by the device that already has access ("host"), sealed with a
 /// PIN by [PairingCodec], shown as a QR code or copied as text, and opened
 /// on the joining device. Because there is no server, the payload has to
-/// carry the database credentials themselves — hence the PIN wrapping and
+/// carry the database credentials themselves, hence the PIN wrapping and
 /// the short validity window.
 @immutable
 class PairingPayload {

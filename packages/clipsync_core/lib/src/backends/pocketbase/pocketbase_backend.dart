@@ -300,7 +300,7 @@ class PocketBaseBackend implements SyncBackend {
   static void _assertField(RecordModel r, String field, String collection) {
     if (!r.data.containsKey(field)) {
       throw BackendException(
-        'PocketBase collection "$collection" has no "$field" field — import the upgraded schema from ${descriptorStatic.docsPath}',
+        'PocketBase collection "$collection" has no "$field" field; import the upgraded schema from ${descriptorStatic.docsPath}',
         isAuth: true,
       );
     }

@@ -2,7 +2,7 @@ import 'package:clipsync_core/clipsync_core.dart';
 import 'package:flutter/foundation.dart';
 
 /// User preferences. Backend secrets and the passphrase are **not** part of
-/// this object's persisted form — see `SettingsRepository`.
+/// this object's persisted form; see `SettingsRepository`.
 @immutable
 class AppSettings {
   /// Creates settings.

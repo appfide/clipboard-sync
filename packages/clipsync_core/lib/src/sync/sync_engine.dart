@@ -313,7 +313,7 @@ class SyncEngine {
   }
 
   /// Pre-creates a row for a device that will join with a pairing code,
-  /// so the host decides its role, expiry and — in a signed group — the
+  /// so the host decides its role, expiry and, in a signed group, the
   /// keys that will speak for it. [passphrase] (when given and the device
   /// has a box key) is sealed into the row so it never travels in the code.
   Future<void> inviteDevice({
@@ -377,7 +377,7 @@ class SyncEngine {
   ///
   /// Turning encryption on seals what is written *next*; it does not reach
   /// back over history. This is the scan behind the warning the app shows.
-  /// Only meaningful for a group that encrypts — with encryption off, every
+  /// Only meaningful for a group that encrypts: with encryption off, every
   /// row is plaintext by definition, so this throws rather than inviting the
   /// user to delete their whole history.
   Future<List<ClipItem>> plaintextClips() async {
@@ -416,7 +416,7 @@ class SyncEngine {
   /// Encrypted clips this device wrote whose `content_hash` is still the plain
   /// SHA-256 of the plaintext, from before the fingerprint was keyed.
   ///
-  /// The ciphertext is safe; the fingerprint beside it is not — it lets anyone
+  /// The ciphertext is safe; the fingerprint beside it is not: it lets anyone
   /// with read access confirm a guess about a short clip. Detection is exact
   /// rather than heuristic: decrypt, hash the plaintext, and see whether that
   /// is what the row carries.
@@ -555,7 +555,7 @@ class SyncEngine {
   }
 
   /// Signs [d] when this device holds the admin key; otherwise returns it
-  /// unchanged (legacy group) — a signed group refuses earlier.
+  /// unchanged (legacy group): a signed group refuses earlier.
   Future<Device> _signed(Device d) async {
     final a = adminKey;
     return a == null ? d : ClipSigning.signMembership(d, a);
@@ -592,7 +592,7 @@ class SyncEngine {
     } on BackendException catch (e) {
       _onError(e.message, e, isAuth: e.isAuth);
     } on CipherException catch (e) {
-      // Wrong passphrase: behaves like auth — user must fix settings.
+      // Wrong passphrase: behaves like auth, user must fix settings.
       _onError(e.message, e, isAuth: true);
     } catch (e) {
       _onError(e.toString(), e);

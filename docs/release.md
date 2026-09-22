@@ -12,14 +12,14 @@
 | Platform | Artifact | Signed? |
 |---|---|---|
 | macOS | `ClipboardSync-<v>-macos.dmg` (arm64; Intel Macs run it via Rosetta) | Developer ID + notarized once the Apple secrets are set (below); ad-hoc otherwise |
-| Windows | `…-windows.exe` (Inno Setup) + `.zip` portable | No — see [Windows signing](#windows-signing) |
+| Windows | `…-windows.exe` (Inno Setup) + `.zip` portable | No: see [Windows signing](#windows-signing) |
 | Linux | `…-linux.deb`, `…-linux.AppImage` (x86_64) | n/a |
 | Android | `…-android.apk`, `.aab` | Debug key unless secrets set |
-| iOS | `ClipboardSync-<v>-ios-unsigned.ipa` | No — sideload with AltStore/Sideloadly or re-sign |
+| iOS | `ClipboardSync-<v>-ios-unsigned.ipa` | No: sideload with AltStore/Sideloadly or re-sign |
 
 ## Installing unsigned builds
 
-- **macOS keychain prompt**: unsigned builds get a new ad-hoc signature every release, so after an update macOS asks to allow access to the stored credentials — click *Always Allow*. Signing with a Developer ID (below) makes the signature stable and removes the prompt.
+- **macOS keychain prompt**: unsigned builds get a new ad-hoc signature every release, so after an update macOS asks to allow access to the stored credentials, click *Always Allow*. Signing with a Developer ID (below) makes the signature stable and removes the prompt.
 
 - **macOS**: right-click the app → *Open* → *Open*; or
   `xattr -dr com.apple.quarantine "/Applications/Clipboard Sync.app"`.
@@ -30,8 +30,8 @@
 
 | Secret | Purpose |
 |---|---|
-| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Release-sign APK/AAB. Generate: `keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`, then `base64 -i upload-keystore.jks`. Without these, CI signs with the debug key — installable, but users cannot upgrade in place across releases. |
-| `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | Developer ID signing + notarization. Wired; see [macOS signing and notarization](#macos-signing-and-notarization) for how to produce each one. All five must be present — the workflow skips signing entirely if `MACOS_CERT_P12_BASE64` is empty. |
+| `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD` | Release-sign APK/AAB. Generate: `keytool -genkey -v -keystore upload-keystore.jks -keyalg RSA -keysize 2048 -validity 10000 -alias upload`, then `base64 -i upload-keystore.jks`. Without these, CI signs with the debug key, installable, but users cannot upgrade in place across releases. |
+| `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | Developer ID signing + notarization. Wired; see [macOS signing and notarization](#macos-signing-and-notarization) for how to produce each one. All five must be present, the workflow skips signing entirely if `MACOS_CERT_P12_BASE64` is empty. |
 
 Never commit any of these files. `.gitignore`, gitleaks and `scripts/verify_secrets.sh` all reject them.
 
@@ -40,7 +40,7 @@ Never commit any of these files. `.gitignore`, gitleaks and `scripts/verify_secr
 Without this, macOS shows *"Apple could not verify 'Clipboard Sync.app' is free
 of malware"* and the only way in is right-click → *Open* or stripping the
 quarantine attribute. Removing that dialog needs a **paid Apple Developer
-Program membership** ($99/year) — there is no free path, and ad-hoc signing does
+Program membership** ($99/year): there is no free path, and ad-hoc signing does
 not help. Everything else below is a one-time setup; after it, every release is
 signed and notarized automatically.
 
@@ -52,7 +52,7 @@ as the Appfide organisation (needs a D-U-N-S number) makes it show *Appfide*.
    keychain.
 2. **Export it.** Keychain Access → *login* → *My Certificates* → right-click
    *Developer ID Application: …* → *Export* → `.p12`, and set a password. Both
-   the private key and the certificate must be in the export (expand the row —
+   the private key and the certificate must be in the export (expand the row,
    it should have a key under it).
 3. **Encode it.** `base64 -i certificate.p12 | pbcopy`, then delete the `.p12`;
    `.gitignore`, gitleaks and `scripts/verify_secrets.sh` all reject it, but it

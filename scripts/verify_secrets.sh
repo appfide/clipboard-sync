@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Secondary secret gate that complements gitleaks with project-specific checks:
 #   1. Refuses credential-bearing file names regardless of content.
-#   2. Refuses hardcoded remote endpoints inside application code — every DB
+#   2. Refuses hardcoded remote endpoints inside application code; every DB
 #      URL must come from user settings, never from source.
 #   3. Refuses obvious "TODO remove key" style leftovers.
 # Usage: scripts/verify_secrets.sh [files...]   (no args = scan whole tree)

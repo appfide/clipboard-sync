@@ -137,7 +137,7 @@ class _BackendSetupPageState extends ConsumerState<BackendSetupPage> {
             Text('Pick a database', style: theme.textTheme.titleSmall),
             const SizedBox(height: 4),
             Text(
-              'The app connects to it directly — no server in between.',
+              'The app connects to it directly, no server in between.',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 12),
@@ -238,7 +238,7 @@ class _BackendSetupPageState extends ConsumerState<BackendSetupPage> {
                   title: 'Encrypt and sign this group',
                   subtitle: _secure
                       ? 'Recommended. A random passphrase is generated and this device becomes the admin; other devices receive the key through pairing. Turn off only to join a group by typing a passphrase.'
-                      : 'Off — clips are stored readable by the database and anyone with its credentials can pose as a device.',
+                      : 'Off: clips are stored readable by the database and anyone with its credentials can pose as a device.',
                   value: _secure,
                   onChanged: (v) => setState(() => _secure = v),
                 ),
@@ -268,7 +268,7 @@ class _BackendSetupPageState extends ConsumerState<BackendSetupPage> {
                     if (context.mounted) context.go('/');
                   },
                   child: Text(
-                    'Skip — keep history on this device only',
+                    'Skip: keep history on this device only',
                     style: TextStyle(color: c.muted),
                   ),
                 ),

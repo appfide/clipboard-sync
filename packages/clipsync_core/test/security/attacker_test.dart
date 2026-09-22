@@ -467,7 +467,7 @@ void main() {
       expect(
         impostor.engine!.status.selfVerified,
         isTrue,
-        reason: "row still verifies — but with B's keys, which the clone lacks",
+        reason: "row still verifies: but with B's keys, which the clone lacks",
       );
       await impostor.say('clone');
       await admin.engine!.syncNow();

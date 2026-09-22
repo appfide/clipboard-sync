@@ -45,7 +45,7 @@ String? describeNetworkFailure(Object e) {
 
   if (notFound.any(text.contains)) {
     return 'Cannot find $target. The database may have been deleted or the '
-        'URL mistyped — check Settings → Database. If the URL is right, this '
+        'URL mistyped: check Settings → Database. If the URL is right, this '
         'device may be offline.';
   }
   if (unreachable.any(text.contains)) {

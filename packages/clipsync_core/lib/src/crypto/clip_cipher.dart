@@ -18,7 +18,7 @@ import 'package:meta/meta.dart';
 ///   re-attached to a different record without detection.
 /// * Only `content` is encrypted; metadata (type, size, timestamps) stays in
 ///   clear so the engine can order and page without the key.
-/// * `contentHash` leaves as a *keyed* fingerprint — `HMAC-SHA256(hashKey,
+/// * `contentHash` leaves as a *keyed* fingerprint, `HMAC-SHA256(hashKey,
 ///   plaintext)`, where `hashKey = HMAC-SHA256(key, "clipsync/content-hash/v1")`.
 ///   A bare SHA-256 of the plaintext next to the ciphertext would hand anyone
 ///   with read access an offline guessing oracle for short clips (one-time
@@ -159,7 +159,7 @@ class ClipCipher {
   }
 }
 
-/// Decryption failure — wrong passphrase, tampering or corruption.
+/// Decryption failure: wrong passphrase, tampering or corruption.
 class CipherException implements Exception {
   /// Creates a cipher exception.
   CipherException(this.message);

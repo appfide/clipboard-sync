@@ -11,7 +11,7 @@ import 'package:clipsync_core/src/model/device.dart';
 /// every backend (which may reorder or retype fields) round-trips to the
 /// same bytes.
 abstract final class ClipSigning {
-  /// Bytes a device signs for one clip — the *stored* form (ciphertext when
+  /// Bytes a device signs for one clip: the *stored* form (ciphertext when
   /// encrypted), so the signature is checked before decryption.
   static List<int> itemBytes(ClipItem i) => utf8.encode(
     jsonEncode(<String, Object?>{

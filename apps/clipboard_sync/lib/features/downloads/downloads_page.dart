@@ -173,7 +173,7 @@ class _Downloads extends StatelessWidget {
         ],
         const SizedBox(height: 20),
         Text(
-          'Install it on your other devices — every one of them syncs through '
+          'Install it on your other devices: every one of them syncs through '
           'the same database, so the history follows you.',
           style: theme.textTheme.bodyMedium?.copyWith(color: c.muted),
         ),
@@ -235,7 +235,7 @@ class _UpdateBanner extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              'Version $version is out — this device runs '
+              'Version $version is out; this device runs '
               '${BuildInfo.version}.',
               style: theme.textTheme.bodyMedium,
             ),

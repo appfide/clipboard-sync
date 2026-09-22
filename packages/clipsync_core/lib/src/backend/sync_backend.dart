@@ -65,10 +65,10 @@ class BackendException implements Exception {
   /// Underlying error, if any.
   final Object? cause;
 
-  /// Credentials rejected — do not retry until settings change.
+  /// Credentials rejected; do not retry until settings change.
   final bool isAuth;
 
-  /// Network / 5xx — retry with backoff.
+  /// Network / 5xx: retry with backoff.
   final bool isTransient;
 
   @override
@@ -88,14 +88,14 @@ abstract class SyncBackend {
   /// Static description used by the settings UI and registry.
   BackendDescriptor get descriptor;
 
-  /// Opens the connection using [config]. Must not throw on bad credentials —
+  /// Opens the connection using [config]. Must not throw on bad credentials,
   /// those surface from [testConnection] or the first operation.
   Future<void> connect(BackendConfig config);
 
   /// Cheap round-trip that validates credentials and reachability.
   Future<ConnectionCheck> testConnection();
 
-  /// Checks that tables / collections / indexes exist. Never creates them —
+  /// Checks that tables / collections / indexes exist. Never creates them,
   /// the user provisions the database following the docs.
   Future<SchemaCheck> verifySchema();
 
@@ -112,7 +112,7 @@ abstract class SyncBackend {
   });
 
   /// Live changes from other devices. Emits nothing when
-  /// [BackendDescriptor.supportsRealtime] is false — the engine polls instead.
+  /// [BackendDescriptor.supportsRealtime] is false; the engine polls instead.
   Stream<ClipItem> watch({required String excludeDeviceId});
 
   /// Marks [id] as deleted (`deleted_at = now`). Idempotent; no error when
@@ -125,7 +125,7 @@ abstract class SyncBackend {
   /// `paired_by`) that another device set with [updateDevice].
   Future<void> registerDevice(Device device);
 
-  /// Writes the full device row — presence and membership fields. Used by
+  /// Writes the full device row: presence and membership fields. Used by
   /// the managing device to block, re-activate, change the role or expiry,
   /// mark as removed, or pre-create a row for a pairing code.
   Future<void> updateDevice(Device device);

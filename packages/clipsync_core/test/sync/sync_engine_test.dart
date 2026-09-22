@@ -222,7 +222,7 @@ void main() {
       expect(await engineA.legacyHashedClips(), isEmpty);
     });
 
-    test("leaves other devices' rows alone — it cannot re-sign them", () async {
+    test("leaves other devices' rows alone; it cannot re-sign them", () async {
       const text = 'theirs';
       final theirs = (await cipher.seal(
         textItem(text, deviceId: 'dev-b'),
