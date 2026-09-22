@@ -5,7 +5,7 @@ The mark is a clipboard with a sync loop cut out of it, so the same silhouette
 works filled (launcher icons) and as an alpha mask (macOS menu-bar template).
 
 Writes the SVG sources to design/icon/ and renders them into the platform
-locations under apps/clipboard_sync/. Rendering needs rsvg-convert and
+locations under apps/nija/. Rendering needs rsvg-convert and
 ImageMagick (`brew install librsvg imagemagick`); the rendered files are
 committed, so this only has to run when the artwork changes.
 
@@ -28,10 +28,10 @@ import tempfile
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
-APP = REPO / "apps" / "clipboard_sync"
+APP = REPO / "apps" / "nija"
 DESIGN = REPO / "design" / "icon"
 
-# apps/clipboard_sync/lib/ui/app_theme.dart
+# apps/nija/lib/ui/app_theme.dart
 BLUE_500 = "#3B82F6"
 BLUE_700 = "#1D4ED8"
 TRAY_BLUE = "#3B82F6"
@@ -318,7 +318,7 @@ def check(app: Path) -> int:
     """Regenerate into a scratch copy and diff against what is committed."""
     with tempfile.TemporaryDirectory() as raw:
         scratch = Path(raw)
-        shadow = scratch / "apps" / "clipboard_sync"
+        shadow = scratch / "apps" / "nija"
         for sub in ("assets/icons", "android", "ios", "macos", "windows"):
             shutil.copytree(app / sub, shadow / sub, dirs_exist_ok=True)
         generate(shadow, scratch / "design" / "icon", scratch / "docs")

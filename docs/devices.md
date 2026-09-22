@@ -1,6 +1,6 @@
 # Devices, pairing and access control
 
-Clipboard Sync has no server: every device talks to *your* database with the
+Nija has no server: every device talks to *your* database with the
 credentials you gave it. This page explains how devices join a sync group,
 what "block", "remove", roles and expiry actually do, and where the limits
 of that model are.
@@ -29,7 +29,7 @@ to the new device's key inside its device row.
 
 The code is the settings JSON encrypted with AES-256-GCM under a key derived
 from the PIN with Argon2id (64 MiB, 3 iterations), salted per code. The wire
-form is `CSYNC1.` + base64url. Without the PIN a photo of the QR is an
+form is `NIJA1.` + base64url. Without the PIN a photo of the QR is an
 offline brute-force of 10⁸ PINs at roughly a second each. The host keeps a
 code valid for 5 minutes; the joining device refuses stale codes.
 
@@ -78,7 +78,7 @@ copy is hidden in the sender's history; the receiver sees it with a
 ## How access is enforced: read this
 
 All devices in a group hold the **same** database credentials, so the
-database itself cannot tell them apart. Clipboard Sync therefore enforces
+database itself cannot tell them apart. Nija therefore enforces
 membership cryptographically, on every device, instead of relying on the
 database:
 

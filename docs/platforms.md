@@ -11,7 +11,7 @@ shows the same guidance in-app together with a live **Test** button.
 | Linux (X11 / XWayland) | Yes, GTK clipboard polling | Yes (keybinder) | `~/.config/autostart/*.desktop` | None. Secret Service (GNOME Keyring / KWallet) used for credentials when present |
 | Linux (native Wayland) | Only while focused | No | same | The app defaults to XWayland (`GDK_BACKEND=x11`); set `GDK_BACKEND=wayland` to override |
 | Android | No, Android 10+ serves clipboard reads only to the focused app | n/a | n/a | No permission exists. Android 12+ shows a "pasted from …" notice on each read |
-| iOS | No: never in background | n/a | n/a | "Allow Paste?" on reads of content from other apps unless *Settings → Clipboard Sync → Paste from Other Apps → Allow*; Local Network prompt for LAN databases |
+| iOS | No: never in background | n/a | n/a | "Allow Paste?" on reads of content from other apps unless *Settings → Nija → Paste from Other Apps → Allow*; Local Network prompt for LAN databases |
 
 ## Sensitive-content hints
 
@@ -31,7 +31,7 @@ the copied code instead.
 
 ## Mobile capture flow
 
-Copy in any app → open Clipboard Sync (or tap **Capture**) → the app reads
+Copy in any app → open Nija (or tap **Capture**) → the app reads
 the clipboard on resume. Android hands window focus over slightly after the
 `resumed` lifecycle event, so the read is delayed 400 ms and retried once.
 On iOS the app checks `hasStrings` first, which does not trigger the paste
@@ -42,7 +42,7 @@ prompt, and only reads when there is something to read.
 Credentials are stored in the login keychain. macOS binds each keychain item
 to the signature of the app that created it. Release builds are currently
 **unsigned** (ad-hoc signature), so after updating the app macOS shows
-"Clipboard Sync wants to use your confidential information stored in …",
+"Nija wants to use your confidential information stored in …",
 click **Always Allow**. The app never blocks on that prompt: startup reads
 only preferences, secrets are loaded after the first frame, and every
 keychain call is bounded by a 10 s timeout with a preferences fallback that

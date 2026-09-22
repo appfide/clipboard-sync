@@ -3,8 +3,8 @@
 ## Setup
 
 ```sh
-git clone https://github.com/appfide/clipboard-sync.git
-cd clipboard-sync
+git clone https://github.com/appfide/nija.git
+cd nija
 ./scripts/bootstrap.sh        # installs pre-commit hooks, fetches deps
 ```
 
@@ -19,7 +19,7 @@ Requirements: Flutter ≥ 3.44 (stable), `pre-commit`, `gitleaks`. On macOS: `br
 
 ## Adding a database backend
 
-1. Create `packages/clipsync_core/lib/src/backends/<name>/<name>_backend.dart` implementing `SyncBackend`.
+1. Create `packages/nija_core/lib/src/backends/<name>/<name>_backend.dart` implementing `SyncBackend`.
 2. Declare its settings in a `BackendDescriptor`: the settings UI is generated from `configSchema`, so every field the user must enter lives there.
 3. Register it in `backend_registry.dart`.
 4. Add contract tests (`test/backends/<name>_backend_test.dart`) using the shared `runBackendContractTests` helper.
@@ -30,9 +30,9 @@ The backend must be reachable **directly from the app** with user-supplied crede
 
 ## UI changes
 
-- Design tokens live in `apps/clipboard_sync/lib/ui/app_theme.dart`; use `Theme.of(context)` / `context.colors`, never hardcoded colours.
+- Design tokens live in `apps/nija/lib/ui/app_theme.dart`; use `Theme.of(context)` / `context.colors`, never hardcoded colours.
 - After visual changes regenerate the screenshots used in the README:
-  `cd apps/clipboard_sync && FLUTTER_ROOT=$(dirname $(dirname $(which flutter))) flutter test test_screenshots --update-goldens`
+  `cd apps/nija && FLUTTER_ROOT=$(dirname $(dirname $(which flutter))) flutter test test_screenshots --update-goldens`
   and eyeball the PNGs in `docs/screenshots/` in both themes.
 
 ## Never commit

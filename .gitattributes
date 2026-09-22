@@ -18,6 +18,6 @@
 *.freezed.dart linguist-generated=true -diff
 **/GeneratedPluginRegistrant.* linguist-generated=true
 docs/screenshots/*.png -diff
-apps/clipboard_sync/android/gradle/** linguist-vendored
-apps/clipboard_sync/ios/Runner.xcodeproj/** linguist-vendored
-apps/clipboard_sync/macos/Runner.xcodeproj/** linguist-vendored
+apps/nija/android/gradle/** linguist-vendored
+apps/nija/ios/Runner.xcodeproj/** linguist-vendored
+apps/nija/macos/Runner.xcodeproj/** linguist-vendored

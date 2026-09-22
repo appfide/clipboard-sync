@@ -2,7 +2,7 @@
 
 ## How a release happens
 
-1. Bump `version:` in `apps/clipboard_sync/pubspec.yaml` (SemVer) and add a
+1. Bump `version:` in `apps/nija/pubspec.yaml` (SemVer) and add a
    `CHANGELOG.md` entry in the same PR.
 2. Merge to `main`. The **Release** workflow sees the new version, tags
    `v<version>`, builds every installer with `flutter_distributor`, and
@@ -22,7 +22,7 @@
 - **macOS keychain prompt**: unsigned builds get a new ad-hoc signature every release, so after an update macOS asks to allow access to the stored credentials, click *Always Allow*. Signing with a Developer ID (below) makes the signature stable and removes the prompt.
 
 - **macOS**: right-click the app → *Open* → *Open*; or
-  `xattr -dr com.apple.quarantine "/Applications/Clipboard Sync.app"`.
+  `xattr -dr com.apple.quarantine "/Applications/Nija.app"`.
 - **Windows**: SmartScreen → *More info* → *Run anyway*.
 - **iOS**: unsigned `.ipa` requires a sideloading tool with your own Apple ID.
 
@@ -37,7 +37,7 @@ Never commit any of these files. `.gitignore`, gitleaks and `scripts/verify_secr
 
 ## macOS signing and notarization
 
-Without this, macOS shows *"Apple could not verify 'Clipboard Sync.app' is free
+Without this, macOS shows *"Apple could not verify 'Nija.app' is free
 of malware"* and the only way in is right-click → *Open* or stripping the
 quarantine attribute. Removing that dialog needs a **paid Apple Developer
 Program membership** ($99/year): there is no free path, and ad-hoc signing does
@@ -112,7 +112,7 @@ Until then the installer shows *Windows protected your PC* → *More info* →
 
 ```sh
 dart pub global activate flutter_distributor
-cd apps/clipboard_sync
+cd apps/nija
 flutter_distributor release --name local-macos      # dmg (needs `npm i -g appdmg`)
 flutter_distributor release --name local-linux      # deb + AppImage (needs appimagetool)
 flutter_distributor release --name local-windows    # exe (needs Inno Setup) + zip

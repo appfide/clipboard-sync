@@ -8,5 +8,5 @@
 /.gitleaks.toml                     @dhipin
 /.pre-commit-config.yaml            @dhipin
 /scripts/                           @dhipin
-/packages/clipsync_core/lib/src/crypto/   @dhipin
-/packages/clipsync_core/lib/src/backends/ @dhipin
+/packages/nija_core/lib/src/crypto/   @dhipin
+/packages/nija_core/lib/src/backends/ @dhipin
