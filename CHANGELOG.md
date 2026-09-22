@@ -11,6 +11,7 @@ All notable changes to this project are documented here. Format follows
 - Release builds for macOS are signed with a Developer ID and notarized by Apple as soon as `MACOS_CERT_P12_BASE64`, `MACOS_CERT_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID` and `APPLE_APP_PASSWORD` exist as repository secrets, which removes the *"Apple could not verify…"* dialog on download. Without the secrets nothing changes: the build stays ad-hoc signed. Setup steps in [`docs/release.md`](docs/release.md#macos-signing-and-notarization).
 
 ### Fixed
+- **macOS: closing the window quit the app** instead of leaving it in the menu bar. `applicationShouldTerminateAfterLastWindowClosed` returned true, so the moment the window went away macOS ended the process — tray icon, background capture and all. It now returns false, and clicking the Dock icon with no window open brings the window back. Reopening from the tray icon or the global hotkey already worked.
 - A database that cannot be resolved or reached now says so in words. Pairing, the devices list and the sync status used to print the raw transport error — `ClientException with SocketException: Failed host lookup: 'xxx.supabase.co' (OS Error: nodename nor servname provided, errno = 8), uri=…` — where a user needs to read "the database may have been deleted or the URL mistyped". The raw error still travels to the diagnostics export.
 
 ### Changed
