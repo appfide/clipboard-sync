@@ -34,6 +34,14 @@ only() {
   printf '%s\n' "${matches[0]}"
 }
 
+# Packagers disagree about the build number: a deb keeps pubspec's `+5`,
+# while macOS, iOS and Android carry the three-part version alone. Compare the
+# release version against the numeric core either way.
+version_core() {
+  local v="${1%%-*}"
+  printf '%s\n' "${v%%+*}"
+}
+
 # Guards against a packaging step that "succeeds" and writes a stub.
 min_size() {
   local file="$1" mb="$2" bytes
@@ -56,7 +64,8 @@ case "$platform" in
     id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")
     short=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")
     [ "$id" = "$BUNDLE_ID" ] || fail "dmg carries bundle id $id, expected $BUNDLE_ID"
-    [ "$short" = "$version" ] || fail "dmg carries version $short, expected $version"
+    [ "$(version_core "$short")" = "$(version_core "$version")" ] \
+      || fail "dmg carries version $short, expected $version"
     ok "$BUNDLE_ID $short"
     codesign --verify --strict --deep "$app" || fail "the app bundle fails codesign --verify"
     if [ "${MACOS_SIGNING:-false}" = "true" ]; then
@@ -79,7 +88,8 @@ case "$platform" in
     id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")
     short=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")
     [ "$id" = "$BUNDLE_ID" ] || fail "ipa carries bundle id $id, expected $BUNDLE_ID"
-    [ "$short" = "$version" ] || fail "ipa carries version $short, expected $version"
+    [ "$(version_core "$short")" = "$(version_core "$version")" ] \
+      || fail "ipa carries version $short, expected $version"
     # The ipa is deliberately unsigned; users re-sign it themselves.
     [ -d "$work/Payload/Runner.app/_CodeSignature" ] \
       && fail "the ipa is signed, but this release publishes it as unsigned"
@@ -103,7 +113,8 @@ case "$platform" in
     pkg=$(dpkg-deb -f "$deb" Package)
     ver=$(dpkg-deb -f "$deb" Version)
     [ "$pkg" = "nija" ] || fail "the deb declares package $pkg, expected nija"
-    [ "${ver%%-*}" = "$version" ] || fail "the deb declares version $ver, expected $version"
+    [ "$(version_core "$ver")" = "$(version_core "$version")" ] \
+      || fail "the deb declares version $ver, expected $version"
     dpkg-deb -c "$deb" | grep -q "/nija" || fail "the deb ships no nija binary"
     ok "deb $pkg $ver"
     head -c 4 "$img" | grep -q ELF || fail "the AppImage is not an ELF binary"
@@ -120,7 +131,7 @@ case "$platform" in
     badging=$("$aapt" dump badging "$apk")
     echo "$badging" | grep -q "package: name='$BUNDLE_ID'" \
       || fail "apk package is $(echo "$badging" | sed -nE "s/^package: name='([^']+)'.*/\1/p"), expected $BUNDLE_ID"
-    echo "$badging" | grep -q "versionName='$version'" \
+    echo "$badging" | grep -q "versionName='$(version_core "$version")'" \
       || fail "apk versionName is $(echo "$badging" | sed -nE "s/.*versionName='([^']+)'.*/\1/p"), expected $version"
     ok "$BUNDLE_ID $version"
     if [ "${ANDROID_SIGNING:-false}" = "true" ]; then
