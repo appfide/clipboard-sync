@@ -172,13 +172,13 @@ final _release = ReleaseInfo(
       'https://github.com/appfide/nija/releases/download/v0.2.1/SHA256SUMS.txt',
   assets: [
     for (final (name, size) in [
-      ('ClipboardSync-0.2.1-macos.dmg', 41943040),
-      ('ClipboardSync-0.2.1-windows.exe', 33554432),
-      ('ClipboardSync-0.2.1-windows.zip', 31457280),
-      ('ClipboardSync-0.2.1-linux.deb', 29360128),
-      ('ClipboardSync-0.2.1-linux.AppImage', 52428800),
-      ('ClipboardSync-0.2.1-android.apk', 25165824),
-      ('ClipboardSync-0.2.1-ios-unsigned.ipa', 27262976),
+      ('Nija-0.2.1-macos.dmg', 41943040),
+      ('Nija-0.2.1-windows.exe', 33554432),
+      ('Nija-0.2.1-windows.zip', 31457280),
+      ('Nija-0.2.1-linux.deb', 29360128),
+      ('Nija-0.2.1-linux.AppImage', 52428800),
+      ('Nija-0.2.1-android.apk', 25165824),
+      ('Nija-0.2.1-ios-unsigned.ipa', 27262976),
     ])
       ReleaseInfo.fromJson({
         'tag_name': 'v0.2.1',

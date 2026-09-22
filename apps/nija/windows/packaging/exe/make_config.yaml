@@ -5,7 +5,7 @@ publisher_url: https://github.com/appfide/nija
 display_name: Nija
 executable_name: nija.exe
 create_desktop_icon: true
-install_dir_name: ClipboardSync
+install_dir_name: Nija
 privileges_required: lowest
 launch_at_startup: false
 locales:

@@ -18,14 +18,14 @@ Map<String, Object?> _payload({String tag = 'v9.9.9'}) => {
       .toIso8601String(),
   'assets': [
     for (final (name, size) in [
-      ('ClipboardSync-9.9.9-macos.dmg', 41943040),
-      ('ClipboardSync-9.9.9-windows.exe', 33554432),
-      ('ClipboardSync-9.9.9-windows.zip', 31457280),
-      ('ClipboardSync-9.9.9-linux.deb', 29360128),
-      ('ClipboardSync-9.9.9-linux.AppImage', 52428800),
-      ('ClipboardSync-9.9.9-android.apk', 25165824),
-      ('ClipboardSync-9.9.9-android.aab', 24117248),
-      ('ClipboardSync-9.9.9-ios-unsigned.ipa', 27262976),
+      ('Nija-9.9.9-macos.dmg', 41943040),
+      ('Nija-9.9.9-windows.exe', 33554432),
+      ('Nija-9.9.9-windows.zip', 31457280),
+      ('Nija-9.9.9-linux.deb', 29360128),
+      ('Nija-9.9.9-linux.AppImage', 52428800),
+      ('Nija-9.9.9-android.apk', 25165824),
+      ('Nija-9.9.9-android.aab', 24117248),
+      ('Nija-9.9.9-ios-unsigned.ipa', 27262976),
       ('SHA256SUMS.txt', 512),
     ])
       {
@@ -160,7 +160,7 @@ void main() {
       expect(find.byKey(const ValueKey('download-qr-dialog')), findsOneWidget);
       expect(find.byKey(const ValueKey('download-qr')), findsOneWidget);
       expect(
-        find.textContaining('ClipboardSync-9.9.9-macos.dmg'),
+        find.textContaining('Nija-9.9.9-macos.dmg'),
         findsOneWidget,
       );
     });

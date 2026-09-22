@@ -48,7 +48,7 @@ class ReleaseService {
         ..set(HttpHeaders.acceptHeader, 'application/vnd.github+json')
         ..set(
           HttpHeaders.userAgentHeader,
-          'ClipboardSync/${BuildInfo.version}',
+          'Nija/${BuildInfo.version}',
         );
       final response = await request.close().timeout(timeout);
       final body = await response

@@ -11,7 +11,14 @@ import 'package:win32_registry/win32_registry.dart';
 /// * Windows, `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`
 abstract final class AutostartService {
   static const _label = 'com.appfide.nija';
-  static const _appName = 'ClipboardSync';
+  static const _appName = 'Nija';
+
+  // What the app registered under before the rename to Nija. An entry left
+  // behind here launches an executable that no longer exists on every login,
+  // so it is cleared whenever autostart is touched.
+  static const _legacyLabel = 'com.appfide.clipboardSync';
+  static const _legacyDesktopFile = 'clipboard_sync.desktop';
+  static const _legacyAppName = 'ClipboardSync';
 
   /// Enables or disables autostart. Errors are logged, never thrown.
   static Future<void> setEnabled({
@@ -20,6 +27,7 @@ abstract final class AutostartService {
   }) async {
     try {
       final exe = Platform.resolvedExecutable;
+      _removeLegacyEntry();
       if (Platform.isMacOS) {
         await _macos(enabled: enabled, hidden: hidden, exe: exe);
       } else if (Platform.isLinux) {
@@ -30,6 +38,47 @@ abstract final class AutostartService {
       log.i('autostart ${enabled ? 'enabled' : 'disabled'}');
     } catch (e) {
       log.w('autostart update failed', error: e);
+    }
+  }
+
+  /// Drops the login item the app registered under its old name. Failures are
+  /// swallowed: a stale entry is worth reporting, never worth blocking on.
+  static void _removeLegacyEntry() {
+    try {
+      final home = Platform.environment['HOME'] ?? '';
+      if (Platform.isMacOS) {
+        final old = File(
+          p.join(home, 'Library', 'LaunchAgents', '$_legacyLabel.plist'),
+        );
+        if (old.existsSync()) old.deleteSync();
+      } else if (Platform.isLinux) {
+        final old = File(
+          p.join(
+            Platform.environment['XDG_CONFIG_HOME'] ?? p.join(home, '.config'),
+            'autostart',
+            _legacyDesktopFile,
+          ),
+        );
+        if (old.existsSync()) old.deleteSync();
+      } else if (Platform.isWindows) {
+        final hkcu = RegistryKey.openCurrentUser(RegistryAccess.readWrite);
+        try {
+          final run = hkcu.create(
+            r'Software\Microsoft\Windows\CurrentVersion\Run',
+          );
+          try {
+            if (run.getString(_legacyAppName) != null) {
+              run.removeValue(_legacyAppName);
+            }
+          } finally {
+            run.close();
+          }
+        } finally {
+          hkcu.close();
+        }
+      }
+    } catch (e) {
+      log.w('could not clear the pre-rename autostart entry', error: e);
     }
   }
 

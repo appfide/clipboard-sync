@@ -16,7 +16,7 @@ permissions:
 env:
   FLUTTER_VERSION: "3.44.4"
   APP_DIR: apps/nija
-  ARTIFACT_NAME: "ClipboardSync-{{build_name}}-{{platform}}.{{ext}}"
+  ARTIFACT_NAME: "Nija-{{build_name}}-{{platform}}.{{ext}}"
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -210,7 +210,7 @@ jobs:
             --dart-define "APP_VERSION=$VERSION" --dart-define "GIT_SHA=${GITHUB_SHA::7}"
           mkdir -p dist/ios/Payload
           cp -R build/ios/iphoneos/Runner.app dist/ios/Payload/
-          (cd dist/ios && zip -qr "ClipboardSync-$VERSION-ios-unsigned.ipa" Payload)
+          (cd dist/ios && zip -qr "Nija-$VERSION-ios-unsigned.ipa" Payload)
           rm -rf dist/ios/Payload
 
       - name: Notarize and staple the dmg

@@ -11,11 +11,11 @@
 
 | Platform | Artifact | Signed? |
 |---|---|---|
-| macOS | `ClipboardSync-<v>-macos.dmg` (arm64; Intel Macs run it via Rosetta) | Developer ID + notarized once the Apple secrets are set (below); ad-hoc otherwise |
+| macOS | `Nija-<v>-macos.dmg` (arm64; Intel Macs run it via Rosetta) | Developer ID + notarized once the Apple secrets are set (below); ad-hoc otherwise |
 | Windows | `…-windows.exe` (Inno Setup) + `.zip` portable | No: see [Windows signing](#windows-signing) |
 | Linux | `…-linux.deb`, `…-linux.AppImage` (x86_64) | n/a |
 | Android | `…-android.apk`, `.aab` | Debug key unless secrets set |
-| iOS | `ClipboardSync-<v>-ios-unsigned.ipa` | No: sideload with AltStore/Sideloadly or re-sign |
+| iOS | `Nija-<v>-ios-unsigned.ipa` | No: sideload with AltStore/Sideloadly or re-sign |
 
 ## Installing unsigned builds
 

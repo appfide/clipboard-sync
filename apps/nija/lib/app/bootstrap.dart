@@ -72,7 +72,7 @@ Future<void> bootstrap(List<String> args) async {
   );
 
   runApp(
-    UncontrolledProviderScope(container: app, child: const ClipboardSyncApp()),
+    UncontrolledProviderScope(container: app, child: const NijaApp()),
   );
 
   await shell?.init(

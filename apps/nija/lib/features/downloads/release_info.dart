@@ -50,7 +50,7 @@ class DownloadAsset {
     this.note,
   });
 
-  /// File name, e.g. `ClipboardSync-0.2.1-macos.dmg`.
+  /// File name, e.g. `Nija-0.3.0-macos.dmg`.
   final String name;
 
   /// Direct download URL.

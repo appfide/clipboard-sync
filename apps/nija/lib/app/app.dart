@@ -5,9 +5,9 @@ import 'package:nija/providers.dart';
 import 'package:nija/ui/app_theme.dart';
 
 /// Root widget.
-class ClipboardSyncApp extends ConsumerWidget {
+class NijaApp extends ConsumerWidget {
   /// Creates the app.
-  const ClipboardSyncApp({super.key});
+  const NijaApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
