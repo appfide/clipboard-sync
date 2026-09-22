@@ -25,6 +25,19 @@ APP_NAME="Nija"
 fail() { echo "::error::$*" >&2; exit 1; }
 ok() { echo "  ok: $*"; }
 
+# Substring tests are done in bash rather than through `grep -q`, which closes
+# the pipe at the first match: that kills the producer with SIGPIPE and, under
+# `set -o pipefail`, fails the pipeline that just succeeded. Piping a captured
+# string into grep has the same problem once the string is large enough.
+has() { [[ "$1" == *"$2"* ]]; }
+# `${var,,}` would be shorter, but macOS runners still ship bash 3.2.
+has_i() {
+  local haystack needle
+  haystack=$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')
+  needle=$(printf '%s' "$2" | tr '[:upper:]' '[:lower:]')
+  [[ "$haystack" == *"$needle"* ]]
+}
+
 # Finds exactly one file matching a glob; a release that produced two dmgs or
 # none is broken in a way the later steps would paper over.
 only() {
@@ -69,7 +82,8 @@ case "$platform" in
     ok "$BUNDLE_ID $short"
     codesign --verify --strict --deep "$app" || fail "the app bundle fails codesign --verify"
     if [ "${MACOS_SIGNING:-false}" = "true" ]; then
-      codesign --display --verbose=4 "$app" 2>&1 | grep -q 'Authority=Developer ID Application' \
+      signature=$(codesign --display --verbose=4 "$app" 2>&1 || true)
+      has "$signature" 'Authority=Developer ID Application' \
         || fail "release claims Developer ID signing but the app is not signed with one"
       xcrun stapler validate "$dmg" || fail "the dmg is not stapled, so Gatekeeper will call home or refuse"
       ok "Developer ID signed and stapled"
@@ -101,7 +115,8 @@ case "$platform" in
     zip=$(only "*-windows.zip")
     min_size "$exe" 5
     min_size "$zip" 5
-    unzip -l "$zip" | grep -qi "$APP_NAME.exe" || fail "the portable zip has no $APP_NAME.exe"
+    listing=$(unzip -l "$zip")
+    has_i "$listing" "$APP_NAME.exe" || fail "the portable zip has no $APP_NAME.exe"
     ok "installer and portable zip present"
     ;;
 
@@ -115,9 +130,11 @@ case "$platform" in
     [ "$pkg" = "nija" ] || fail "the deb declares package $pkg, expected nija"
     [ "$(version_core "$ver")" = "$(version_core "$version")" ] \
       || fail "the deb declares version $ver, expected $version"
-    dpkg-deb -c "$deb" | grep -q "/nija" || fail "the deb ships no nija binary"
+    contents=$(dpkg-deb -c "$deb")
+    has "$contents" "/nija" || fail "the deb ships no nija binary"
     ok "deb $pkg $ver"
-    head -c 4 "$img" | grep -q ELF || fail "the AppImage is not an ELF binary"
+    magic=$(head -c 4 "$img" | tr -d '\0')
+    has "$magic" ELF || fail "the AppImage is not an ELF binary"
     ok "AppImage is an ELF image"
     ;;
 
@@ -129,9 +146,9 @@ case "$platform" in
     aapt=$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name aapt2 2>/dev/null | sort -r | head -1)
     [ -n "$aapt" ] || fail "no aapt2 in the Android SDK, so the apk cannot be identified"
     badging=$("$aapt" dump badging "$apk")
-    echo "$badging" | grep -q "package: name='$BUNDLE_ID'" \
+    has "$badging" "package: name='$BUNDLE_ID'" \
       || fail "apk package is $(echo "$badging" | sed -nE "s/^package: name='([^']+)'.*/\1/p"), expected $BUNDLE_ID"
-    echo "$badging" | grep -q "versionName='$(version_core "$version")'" \
+    has "$badging" "versionName='$(version_core "$version")'" \
       || fail "apk versionName is $(echo "$badging" | sed -nE "s/.*versionName='([^']+)'.*/\1/p"), expected $version"
     ok "$BUNDLE_ID $version"
     if [ "${ANDROID_SIGNING:-false}" = "true" ]; then
