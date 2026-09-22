@@ -372,6 +372,75 @@ class SyncEngine {
     await _membership();
   }
 
+  /// Clips that predate encryption: rows any holder of the database
+  /// credentials can still read.
+  ///
+  /// Turning encryption on seals what is written *next*; it does not reach
+  /// back over history. This is the scan behind the warning the app shows.
+  /// Only meaningful for a group that encrypts — with encryption off, every
+  /// row is plaintext by definition, so this throws rather than inviting the
+  /// user to delete their whole history.
+  Future<List<ClipItem>> plaintextClips() async {
+    if (_ring == null) {
+      throw StateError('Encryption is off for this group');
+    }
+    final found = <ClipItem>[];
+    DateTime? cursor;
+    while (true) {
+      final page = await _backend.pullSince(
+        cursor,
+        // Sentinel: no device id looks like this, so nothing is excluded and
+        // this device's own old rows are scanned too.
+        excludeDeviceId: '-',
+      );
+      if (page.isEmpty) break;
+      found.addAll(
+        page.where((i) => !i.encrypted && !i.isDeleted && i.content.isNotEmpty),
+      );
+      final newest = page
+          .map((i) => i.updatedAt)
+          .reduce((a, b) => a.isAfter(b) ? a : b);
+      if (cursor != null && !newest.isAfter(cursor)) break;
+      cursor = newest;
+      if (page.length < 500) break;
+    }
+    _log('found ${found.length} plaintext clip(s)');
+    return found;
+  }
+
+  /// Overwrites every clip from [plaintextClips] with an empty tombstone and
+  /// drops it locally. Returns how many were cleared.
+  ///
+  /// The content is replaced rather than only marked deleted, because a
+  /// tombstone that keeps its `content` column leaves the plaintext exactly
+  /// where it was.
+  Future<int> purgePlaintextClips() async {
+    final stale = await plaintextClips();
+    if (stale.isEmpty) return 0;
+    final now = clock.now().toUtc();
+    final cleared = <ClipItem>[];
+    for (final i in stale) {
+      var item = i.copyWith(
+        content: '',
+        contentHash: '',
+        deletedAt: now,
+        updatedAt: now,
+        clearNonce: true,
+        clearSig: true,
+      );
+      final keys = identity;
+      if (keys != null) item = await ClipSigning.signItem(item, keys);
+      cleared.add(item);
+    }
+    for (var i = 0; i < cleared.length; i += pushBatchSize) {
+      final end = (i + pushBatchSize).clamp(0, cleared.length);
+      await _backend.upsert(cleared.sublist(i, end));
+    }
+    await _store.applyRemote(cleared);
+    _log('purged ${cleared.length} plaintext clip(s)');
+    return cleared.length;
+  }
+
   /// Issues passphrase version `current + 1` = [newPassphrase] to every
   /// trusted active device with a box key (this device included) and
   /// reports it through [onKeyReceived]. Devices that are blocked, removed,

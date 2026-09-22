@@ -348,6 +348,28 @@ class SyncController extends Notifier<SyncStatus> {
     }
   }
 
+  /// Clips in the database that predate encryption and are still readable by
+  /// anyone holding the credentials. Empty when sync is not running.
+  Future<List<ClipItem>> plaintextClips() async {
+    final engine = _engine;
+    if (engine == null || !ref.read(settingsProvider).encryptionEnabled) {
+      return const [];
+    }
+    try {
+      return await engine.plaintextClips();
+    } catch (e) {
+      log.w('plaintext scan failed', error: e);
+      return const [];
+    }
+  }
+
+  /// Overwrites those clips with empty tombstones. Returns how many.
+  Future<int> purgePlaintextClips() async {
+    final cleared = await _managed.purgePlaintextClips();
+    log.i('purged $cleared plaintext clip(s) from the database');
+    return cleared;
+  }
+
   // --- Device management ---------------------------------------------------
 
   SyncEngine get _managed =>

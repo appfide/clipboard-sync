@@ -13,18 +13,54 @@ void main() {
       );
     });
 
-    test('seal/open round-trip keeps metadata in clear', () async {
+    test('seal/open round-trip keeps ordering metadata in clear', () async {
       final item = textItem('hello world');
       final sealed = await cipher.seal(item);
       expect(sealed.encrypted, isTrue);
       expect(sealed.content, isNot('hello world'));
       expect(sealed.nonce, isNotNull);
-      expect(sealed.contentHash, item.contentHash);
       expect(sealed.sizeBytes, item.sizeBytes);
       final opened = await cipher.open(sealed);
       expect(opened.content, 'hello world');
       expect(opened.encrypted, isFalse);
       expect(opened.nonce, isNull);
+    });
+
+    test(
+      'the hash on an encrypted row is keyed, not the plain digest',
+      () async {
+        // A bare SHA-256 beside the ciphertext is a guessing oracle for short
+        // clips, which is exactly the content worth protecting.
+        const text = '123456';
+        final item = textItem(text);
+        final sealed = await cipher.seal(item);
+
+        expect(sealed.contentHash, isNot(item.contentHash));
+        expect(sealed.contentHash, isNot(sha256Hex(text)));
+        expect(sealed.contentHash, hasLength(64));
+
+        // ... and the plain hash is what the local store sees again.
+        final opened = await cipher.open(sealed);
+        expect(opened.contentHash, sha256Hex(text));
+        expect(opened.contentHash, item.contentHash);
+      },
+    );
+
+    test('the keyed hash matches across devices and differs by key', () async {
+      final same = await ClipCipher.fromPassphrase(
+        'correct horse',
+        keyScope: 'test',
+      );
+      final other = await ClipCipher.fromPassphrase('other', keyScope: 'test');
+
+      final mine = await cipher.contentFingerprint('shared clip');
+      expect(
+        await same.contentFingerprint('shared clip'),
+        mine,
+        reason: 'de-duplication across devices in the group still works',
+      );
+      expect(await other.contentFingerprint('shared clip'), isNot(mine));
+      expect(await cipher.contentFingerprint('another clip'), isNot(mine));
     });
 
     test('seal is idempotent and skips empty content', () async {

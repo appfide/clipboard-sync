@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:clipsync_core/src/model/clip_item.dart';
+import 'package:clipsync_core/src/util/hashing.dart';
 import 'package:crypto/crypto.dart' as crypto;
 import 'package:cryptography/cryptography.dart';
 import 'package:meta/meta.dart';
@@ -15,8 +16,15 @@ import 'package:meta/meta.dart';
 ///   so the same passphrase on two different databases yields two keys.
 /// * The item id is bound as associated data, so a ciphertext cannot be
 ///   re-attached to a different record without detection.
-/// * Only `content` is encrypted; metadata (type, size, hash, timestamps)
-///   stays in clear so the engine can de-duplicate and order without the key.
+/// * Only `content` is encrypted; metadata (type, size, timestamps) stays in
+///   clear so the engine can order and page without the key.
+/// * `contentHash` leaves as a *keyed* fingerprint — `HMAC-SHA256(hashKey,
+///   plaintext)`, where `hashKey = HMAC-SHA256(key, "clipsync/content-hash/v1")`.
+///   A bare SHA-256 of the plaintext next to the ciphertext would hand anyone
+///   with read access an offline guessing oracle for short clips (one-time
+///   codes, passwords, card numbers). Devices in the group can still match
+///   identical clips; nobody else can. [open] puts the plain hash back, so
+///   everything on-device behaves as before.
 ///
 /// The derived key never leaves memory; the app stores the *passphrase* in the
 /// OS credential store and re-derives on launch.
@@ -66,6 +74,25 @@ class ClipCipher {
   final SecretKey _key;
   static final AesGcm _aes = AesGcm.with256bits();
 
+  /// Keyed fingerprint of [content], for the `content_hash` column of an
+  /// encrypted row.
+  ///
+  /// Deterministic for a given key, so two devices sharing the passphrase
+  /// compute the same value for the same clip, which is what de-duplication
+  /// needs. Reveals nothing about the content to anyone without the key.
+  Future<String> contentFingerprint(String content) async {
+    final hmac = Hmac.sha256();
+    final hashKey = await hmac.calculateMac(
+      utf8.encode('clipsync/content-hash/v1'),
+      secretKey: _key,
+    );
+    final mac = await hmac.calculateMac(
+      utf8.encode(content),
+      secretKey: SecretKey(hashKey.bytes),
+    );
+    return mac.bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+  }
+
   /// Fingerprint of the key (first 8 hex chars of SHA-256 of the key bytes),
   /// shown in settings so users can confirm two devices share a passphrase.
   Future<String> fingerprint() async {
@@ -86,6 +113,7 @@ class ClipCipher {
     final payload = Uint8List.fromList([...box.cipherText, ...box.mac.bytes]);
     return item.copyWith(
       content: base64Encode(payload),
+      contentHash: await contentFingerprint(item.content),
       nonce: base64Encode(box.nonce),
       encrypted: true,
     );
@@ -114,8 +142,12 @@ class ClipCipher {
         secretKey: _key,
         aad: utf8.encode(item.id),
       );
+      final content = utf8.decode(clear);
       return item.copyWith(
-        content: utf8.decode(clear),
+        content: content,
+        // Back to the plain hash the local store de-duplicates on; the keyed
+        // fingerprint only ever exists on the wire.
+        contentHash: sha256Hex(content),
         encrypted: false,
         clearNonce: true,
       );
