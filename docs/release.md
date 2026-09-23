@@ -94,6 +94,52 @@ Never commit any of these files. `.gitignore`, gitleaks and `scripts/verify_secr
 
 ## macOS signing and notarization
 
+### Setting it up
+
+The certificate has to be created by hand in Apple's portal; everything either
+side of that is scripted.
+
+1. `scripts/` already holds a key and CSR if one was prepared for you
+   (`~/nija-developer-id.key`, `~/nija-developer-id.csr`). Otherwise:
+
+   ```sh
+   umask 077
+   openssl req -new -newkey rsa:2048 -nodes \
+     -keyout ~/nija-developer-id.key -out ~/nija-developer-id.csr \
+     -subj "/emailAddress=<your-apple-id>/CN=Appfide Private Limited/O=Appfide Private Limited/C=IN"
+   ```
+
+   The `.key` is the half Apple never sees and cannot reissue. Keep it off the
+   repo and off any share; losing it means revoking the certificate and
+   starting over.
+
+2. At [developer.apple.com/account/resources/certificates](https://developer.apple.com/account/resources/certificates/add),
+   choose **Developer ID Application**, upload `nija-developer-id.csr`, and
+   download the `.cer`. It must be *Developer ID Application*: a Mac App
+   Distribution or Apple Development certificate cannot sign software
+   distributed outside the App Store, which is the only kind this project ships.
+
+3. Create an app-specific password at
+   [appleid.apple.com](https://appleid.apple.com) → Sign-In and Security →
+   App-Specific Passwords. Notarization refuses an ordinary Apple ID password.
+
+4. Run:
+
+   ```sh
+   scripts/setup_macos_signing.sh ~/Downloads/developerID_application.cer
+   ```
+
+   It checks the certificate is the right kind and actually matches the private
+   key — a mismatch otherwise surfaces as an unexplained signing failure in CI
+   months later — then builds the `.p12` with a generated password and sets all
+   five secrets through `gh`. Nothing is printed.
+
+The next release signs and notarizes the dmg. The verification step fails the
+release if the Developer ID signature or the notarization staple is missing, so
+a silent fallback to ad-hoc signing cannot ship.
+
+### Background
+
 Without this, macOS shows *"Apple could not verify 'Nija.app' is free
 of malware"* and the only way in is right-click → *Open* or stripping the
 quarantine attribute. Removing that dialog needs a **paid Apple Developer
