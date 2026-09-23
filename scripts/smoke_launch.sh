@@ -80,7 +80,7 @@ case "$platform" in
     deb=$(only "*-linux.deb")
     staged=$(mktemp -d)
     dpkg-deb -x "$deb" "$staged"
-    binary=$(find "$staged" -type f -name nija -perm -u+x | head -1)
+    binary=$(find "$staged" -type f -iname nija -perm -u+x | head -1)
     [ -n "$binary" ] || fail "no executable nija in the deb"
     # A GTK app needs a display even to reach its first frame.
     command -v xvfb-run >/dev/null || fail "xvfb-run is missing; install xvfb before this step"
@@ -91,7 +91,9 @@ case "$platform" in
     zip=$(only "*-windows.zip")
     staged=$(mktemp -d)
     unzip -q "$zip" -d "$staged"
-    binary=$(find "$staged" -type f -name "$APP_NAME.exe" | head -1)
+    # The executable is named after the CMake target (`nija`), not the display
+    # name, and Windows filesystems do not care about the difference.
+    binary=$(find "$staged" -type f -iname "$APP_NAME.exe" | head -1)
     [ -n "$binary" ] || fail "no $APP_NAME.exe in the portable zip"
     watch_start "$staged/launch.log" "$binary" --hidden
     # Git Bash's kill does not always reach a native process tree.
