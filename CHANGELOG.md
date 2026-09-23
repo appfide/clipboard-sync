@@ -6,6 +6,11 @@ All notable changes to this project are documented here. Format follows
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-23
+
+### Added
+- **Every desktop installer is now launched before it is published.** Verification proved an installer contained the right app; it could not tell whether that app starts. `scripts/smoke_launch.sh` unpacks the dmg, deb and Windows zip, starts the binary hidden, and fails the release if it is not still running seconds later — the signature of a build that cannot find a library or dies initialising its database. Android and iOS are not covered: launching them needs an emulator or simulator, and the actions that provide one are not on this repository's allowlist.
+
 ## [0.4.0] - 2026-09-23
 
 ### Changed
@@ -89,7 +94,8 @@ All notable changes to this project are documented here. Format follows
 - Android app data excluded from cloud backup and device transfer.
 - Repository gates: gitleaks + pre-commit locally, full-history secret scan in CI, SHA-pinned actions, branch and tag rulesets.
 
-[Unreleased]: https://github.com/appfide/nija/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/appfide/nija/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/appfide/nija/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/appfide/nija/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/appfide/nija/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/appfide/nija/compare/v0.2.0...v0.2.1

@@ -44,8 +44,27 @@ wrong identifier or last version's number fails the release instead of reaching
 users. Run it locally against a `dist/` directory the same way CI does:
 
 ```sh
-scripts/verify_artifacts.sh macos 0.4.0 apps/nija/dist
+scripts/verify_artifacts.sh macos 0.4.1 apps/nija/dist
 ```
+
+### The smoke launch
+
+Verification proves an installer holds the right app. It cannot say whether
+that app *starts*: a build that cannot find a library, crashes in `main()` or
+dies initialising its database passes every structural check ever written.
+`scripts/smoke_launch.sh` unpacks the dmg, deb or Windows zip, starts the
+binary with `--hidden`, and fails the release unless it is still running
+several seconds later, printing whatever the process wrote before it died.
+
+```sh
+scripts/smoke_launch.sh linux apps/nija/dist    # needs xvfb for the GTK build
+```
+
+Android and iOS are not covered. Launching either needs an emulator or a
+simulator, and the actions that provide one are not on this repository's
+Actions allowlist, which is worth more than the coverage. Both are still
+verified structurally, and the Android APK's signature is checked against its
+upload key.
 
 | Platform | Artifact | Signed? |
 |---|---|---|
