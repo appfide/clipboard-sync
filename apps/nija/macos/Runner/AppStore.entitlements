@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Mac App Store builds only. The sandbox is mandatory there, which the
+	     Developer ID build deliberately turns off: see Release.entitlements.
+	     Start-at-login cannot use a LaunchAgent under the sandbox and needs
+	     SMAppService instead, so that one feature is inert in this build. -->
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<!-- Without this, the sandboxed keychain returns -34018. -->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.appfide.nija</string>
+	</array>
+</dict>
+</plist>
