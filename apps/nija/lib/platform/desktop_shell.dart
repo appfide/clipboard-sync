@@ -104,7 +104,13 @@ class DesktopShell with TrayListener, WindowListener {
       if (_recent.isNotEmpty) ...[
         MenuItem.separator(),
         for (final (i, item) in _recent.indexed)
-          MenuItem(key: '$_menuClip$i', label: recentLabel(item)),
+          MenuItem(
+            key: '$_menuClip$i',
+            // Windows menus read `&` as a mnemonic marker; `&&` is a literal.
+            label: Platform.isWindows
+                ? recentLabel(item).replaceAll('&', '&&')
+                : recentLabel(item),
+          ),
         MenuItem.separator(),
       ],
       MenuItem(key: _menuSync, label: 'Sync now'),

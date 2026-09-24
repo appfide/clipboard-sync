@@ -106,6 +106,23 @@ void main() {
     await dispose(tester);
   });
 
+  testWidgets(
+    'keys keep working after clicking a filter',
+    (tester) async {
+      await pumpPage(tester);
+      await tester.tap(find.byKey(const ValueKey('filter-text')));
+      await _settle(tester);
+      await tester.tap(find.byKey(const ValueKey('filter-all')));
+      await _settle(tester);
+      // No arrow first: an arrow's focus traversal would mask a lost focus.
+      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump();
+      expect(sync.copied, ['a']);
+      await dispose(tester);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.macOS),
+  );
+
   testWidgets('primary+digit copies by position', (tester) async {
     await pumpPage(tester);
     final primary = Platform.isMacOS

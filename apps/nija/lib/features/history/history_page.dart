@@ -264,6 +264,9 @@ class _HistoryPageState extends ConsumerState<HistoryPage> {
                     controller: _search,
                     focusNode: _searchFocus,
                     autofocus: PlatformInfo.isDesktop,
+                    // Desktop fields drop focus on any click elsewhere, which
+                    // would take the list's keyboard control with them.
+                    onTapOutside: PlatformInfo.isDesktop ? (_) {} : null,
                     decoration: const InputDecoration(
                       prefixIcon: Icon(Icons.search_rounded),
                       hintText: 'Search history',
